@@ -703,13 +703,12 @@ residualplot_step1 <- function(model, nameofoutcome, nameofage, data,
       mutate(Residuals = get(nameofoutcome) - eval(parse(text = paste0("pred_ss", i))))
     
     plotvaluessub <- newplotvalues
-    pname <- paste0("p", i)
     
     # Create plot
     p <- ggplot2::ggplot(data = plotvaluessub, aes(x = get(nameofage), y = Residuals, group = class)) +
-      theme(axis.text = element_text(size = 16), text = element_text(size = 16)) + 
-      geom_point() + 
-      stat_summary(fun.y = mean, geom = "line", size = 3, col = "CadetBlue", group = 1) + 
+      theme(axis.text = element_text(size = 8), text = element_text(size = 8)) + 
+      geom_point(size=0.1) + 
+      stat_summary(fun.y = mean, geom = "line", size = 1, col = "CadetBlue", group = 1) + 
       ggtitle(paste("Residuals in class", i)) + 
       ylim(ylimit) + 
       labs(x = "Year")
@@ -718,38 +717,59 @@ residualplot_step1 <- function(model, nameofoutcome, nameofage, data,
     plot_list[[i]] <- p
   }
   
-  # After the loop, display all the plots together in one figure
-  if (length(plot_list) > 1) {
-    grid.arrange(grobs = plot_list, ncol = 2, nrow=1)  # Arrange plots in a grid (2 columns)
-  } else {
-    print(plot_list[[1]])  # If only one plot, display it directly
-  }
+  # Display all the plots together in one figure
+  combined_plot <- grid.arrange(grobs = plot_list, ncol = 4, nrow=2)  # Arrange plots in a grid
   
-  return(plot_list)  # Return list of plots
+  return(combined_plot)  # Return combined plot
 }
 
 
-plot_oneclass_linear_drsc_model_2011_2023 <- residualplot_step1(oneclass_linear_drsc_model_2011_2023, 
+residualplot_step1(oneclass_linear_drsc_model_2011_2023, 
                     nameofoutcome="drsc",  
                     nameofage = "year",
                     data = coverage_long_2011_2023,
-                    ylimit=c(-5,5)) 
+                   ylimit=c(2.5,-2.5)) 
 
 
 residualplot_step1(twoclass_linear_drsc_model_2011_2023, 
                    nameofoutcome="drsc",  
                    nameofage = "year",
                    data = coverage_long_2011_2023,
-                   ylimit=c(-5,5)) 
+                   ylimit=c(2.5,-2.5)) 
 
 residualplot_step1(threeclass_linear_drsc_model_2011_2023, 
                    nameofoutcome="drsc",  
                    nameofage = "year",
                    data = coverage_long_2011_2023,
-                   ylimit=c(-5,5)) 
+                   ylimit=c(2.5,-2.5)) 
+
+residualplot_step1(fourclass_linear_drsc_model_2011_2023, 
+                   nameofoutcome="drsc",  
+                   nameofage = "year",
+                   data = coverage_long_2011_2023,
+                   ylimit=c(2.5,-2.5)) 
+
+residualplot_step1(fiveclass_linear_drsc_model_2011_2023, 
+                   nameofoutcome="drsc",  
+                   nameofage = "year",
+                   data = coverage_long_2011_2023,
+                   ylimit=c(2.5,-2.5)) 
 
 
-plot_twoclass_linear_drsc_model_2011_2023
+residualplot_step1(sixclass_linear_drsc_model_2011_2023, 
+                   nameofoutcome="drsc",  
+                   nameofage = "year",
+                   data = coverage_long_2011_2023,
+                   ylimit=c(2.5,-2.5)) 
+
+residualplot_step1(sevenclass_linear_drsc_model_2011_2023, 
+                   nameofoutcome="drsc",  
+                   nameofage = "year",
+                   data = coverage_long_2011_2023,
+                   ylimit=c(2.5,-2.5)) 
+
+
+
 
 
 
