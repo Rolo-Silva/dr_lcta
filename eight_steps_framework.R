@@ -1308,7 +1308,6 @@ sevenclass_cubic_dgcc_model_2020_2023 <- lcmm::hlme(fixed = dgcc ~ 1 + year + I(
 
 
 
-
 residualplot_step1 <- function(model, nameofoutcome, nameofage, data, 
                                ylimit = c(-50, 50), save_path = NULL, model_name = NULL) {
   require(dplyr)
@@ -1329,9 +1328,13 @@ residualplot_step1 <- function(model, nameofoutcome, nameofage, data,
   
   plot_list <- list()  # List to store plots
   
+  # Define x-axis limits based on data range
+  xlim_range <- range(data[[nameofage]], na.rm = TRUE)
+  
   # Loop through each class
   for (i in 1:k) {
-    newplotvalues <- test %>% filter(class == i) %>% 
+    newplotvalues <- test %>% 
+      filter(class == i) %>% 
       mutate(Residuals = get(nameofoutcome) - eval(parse(text = paste0("pred_ss", i))))
     
     plotvaluessub <- newplotvalues
@@ -1343,15 +1346,18 @@ residualplot_step1 <- function(model, nameofoutcome, nameofage, data,
       stat_summary(fun = mean, geom = "line", size = 1, col = "CadetBlue", group = 1) + 
       ggtitle(paste("Residuals in class", i)) + 
       ylim(ylimit) + 
+      xlim(xlim_range) +  # Standardise x-axis limits
       labs(x = "Year") + 
-      #geom_hline(yintercept = 0, linetype = "solid", color = "black", size = 0.5) +
-      theme(panel.grid.major = element_blank(), 
-            panel.grid.minor = element_blank(),
-            panel.background = element_blank(),
-            legend.position = "bottom",
-            legend.title = element_blank(),
-            legend.key = element_rect(fill = "white", colour = "white"),
-            panel.border = element_rect(colour = "black", fill = NA, linewidth = 1))
+      coord_fixed(ratio = 1) +  # Ensure consistent aspect ratio
+      theme(
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        legend.key = element_rect(fill = "white", colour = "white"),
+        panel.border = element_rect(colour = "black", fill = NA, linewidth = 1)
+      )
     
     # Add the plot to the list
     plot_list[[i]] <- p
@@ -1370,6 +1376,7 @@ residualplot_step1 <- function(model, nameofoutcome, nameofage, data,
   
   return(combined_plot)  # Return the combined plot
 }
+
 
 # Directory where to save the plots
 save_directory <- getwd()  # Change this path if needed
