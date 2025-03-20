@@ -96,14 +96,10 @@ rinline <- function(code){
 #| echo: false
 #| message: false
 
-library(tidyverse)
-library(dplyr)
+library(tidyverse) #dplyr, tibble, ggplot2, readr, tidyr, stringr, forcats, lubridate, purr
 library(knitr)
 library(kableExtra)
-library(ggplot2)
 library(ggtext)
-library(stringr)
-library(forcats)
 library(Cairo)
 library(extrafont)
 library(hrbrthemes)
@@ -112,16 +108,13 @@ library(ggrepel)
 library(readxl)
 library(extrafont)
 library(scales)
-library(ggrepel)
 library(ggsci)
 library(lcmm)
 library(MixAll)
 require(kml)
 require(traj)
-require(lcmm)
 require(lmerTest)
 require(plyr)
-require(tidyr)
 require(psych)
 require(fpc)
 require(mclust)
@@ -132,9 +125,7 @@ library(MASS)
 library(broom)
 library(skimr)
 library(gtExtras)
-library(psych)
 library(pander)
-library(tibble)
 library(BayesFactor)
 library(modelsummary)
 library(gt)
@@ -155,7 +146,7 @@ options(scipen=10000000)
 
 **Methods:** We analyzed 2011–2023 data for adults aged ≥15 years with type 2 diabetes from Chile's public health system, focusing on diabetic glycemic control coverage (DGCC) and DRSC. DGCC reflects the proportion of patients with HbA1c \< 7%, and DRSC indicates those undergoing annual retinopathy screening at the municipal level. Data from the Chilean Public Health Platform excluded smaller municipalities. We employed LCMM to identify whether distinct trajectory patterns existed in the DGCC and DRSC. Additionally, we examined the associations between identified trajectories and factors such as deprivation, urbanicity (rural, mixed, urban), and geographic zones (north, central, and south).
 
-**Results:** The analysis included 300 municipalities (2011-2023) and 292 municipalities (2011-2019), examining the DGCC and DRSC. Baseline DGCC was 46.7% (2011-2023) and 45.1% (2011-2019), with annual declines of -1.03% (p \< 0.001) and -0.42% (p \< 0.001), respectively. DRSC increased from 28.5% (2011-2019) to 31.3% (2011-2023), with annual increases of +1.59% (p \< 0.001) and +0.5% (p \< 0.001), respectively. Latent class analysis identified DGCC one-class trajectory up whereas DRSC followed two trajectory classes. Class 1 (lower coverage) had baselines of 24.8% (2011-2023) and 23.05% (2011-2019), with annual changes of +0.4% (p = 0.068) and +1.38% (p \< 0.001), respectively. Class 2 (higher coverage) had baselines of 43.7% (2011-2023) and 43.58% (2011-2019), with annual changes of +0.69% (p = 0.073) and +2.16% (p = 0.002), respectively. Deprivation (lower ISED scores) was linked to lower DRSC coverage: OR 0.66 (2011-2023, 95% CI: 0.50, 0.85) and 0.53 (2011-2019, 95% CI: 0.39, 0.73). Rural areas had higher odds for higher coverage: OR 1.79 (2011-2023, 95% CI: 0.99, 3.21) and OR 2.73 (2011-2019, 95% CI: 1.41, 5.30). Urban areas had lower odds: OR 0.39 (2011-2023, 95% CI: 0.17, 0.84) and OR 0.47 (2011-2019, 95% CI: 0.19, 1.19). The southern region showed higher odds for higher coverage: OR 1.02 (2011-2023, 95% CI: 0.42, 2.51) and OR 1.84 (2011-2019, 95% CI: 1.11, 3.08).
+**Results:** The analysis included 300 municipalities (2011-2023) and 292 municipalities (2011-2019), examining the DGCC and DRSC. Baseline DGCC was 46.7% (2011-2023) and 45.1% (2011-2019), with annual declines of -1.03% (p \< 0.001) and -0.42% (p \< 0.001), respectively. DRSC increased from 28.5% (2011-2019) to 31.3% (2011-2023), with annual increases of +1.59% (p \< 0.001) and +0.5% (p \< 0.001), respectively. Latent class analysis identified DGCC one-class trajectory up whereas DRSC followed two trajectory classes. Class 1 (lower coverage) had baselines of 24.8% (2011-2023) and 23.05% (2011-2019), with annual changes of +0.4% (p = 0.068) and +1.38% (p \< 0.001), respectively. Class 2 (higher coverage) had baselines of 43.7% (2011-2023) and 43.58% (2011-2019), with annual changes of +0.69% (p = 0.073) and +2.16% (p = 0.002), respectively. Deprivation (lower ISED scores) was linked to the higher DRSC coverage trajectory: OR 0.66 (2011-2023, 95% CI: 0.50, 0.85) and 0.53 (2011-2019, 95% CI: 0.39, 0.73). Rural areas had higher odds for higher coverage, but no significant in the longest period OR 1.79 (2011-2023, 95% CI: 0.99, 3.21) but meaningful for the pre-covid period OR 2.73 (2011-2019, 95% CI: 1.41, 5.30). Urban areas had lower odds: OR 0.39 (2011-2023, 95% CI: 0.17, 0.84) and non-significant of OR 0.47 (2011-2019, 95% CI: 0.19, 1.19). The southern region showed higher odds but not significant for higher coverage: OR 1.02 (2011-2023, 95% CI: 0.42, 2.51) and OR 1.84 (2011-2019, 95% CI: 1.11, 3.08).
 
 **Conclusions:** DGCC in Chilean municipalities followed a single trajectory, whereas DRSC exhibited two distinct trajectories, one with lower coverage and the other with higher coverage. Lower deprivation levels were associated with a higher likelihood of a higher DRSC trajectory. Further exploration of municipalities with higher DRSC coverage may provide insights into the factors contributing to these patterns, potentially highlighting the local policies or practices that could be effective. Future research should investigate the factors influencing DRSC coverage trajectories and evaluate strategies to improve the DGCC and DRSC coverage.
 
@@ -163,6 +154,7 @@ options(scipen=10000000)
 
 # Introduction
 
+```{=html}
 <!--
 
 Previous intro 1 - 
@@ -202,6 +194,7 @@ In 2021, an analysis using health datasets at the ecological level from 2011 to 
 This study examined the trajectory patterns in the DGCC and DRSC across geographic regions and municipalities in Chile between 2011-2023. We explored the potential impact of COVID-19 on trajectory patterns and the relationship between deprivation characteristics.
 
 -->
+```
 
 <!-- The Rising Burden of Diabetes and Diabetic Retinopathy-->
 
@@ -221,6 +214,7 @@ Traditional statistical approaches may overlook these population-level variation
 
 In this study, we applied LCMM to longitudinal data on T2DM management and DRS coverage in Chilean municipalities. Our aim was to reveal unique trajectory patterns in achieving a DGC, defined as an HbA1c target of\< 7% and access to the DRS. Additionally, we investigated how area-level demographics and deprivation characteristics correlate with these identified trajectories. Although conducted at an ecological level, our findings offer a novel approach to identifying municipalities that perform above or below the national average. These insights have the potential to guide future research and inform policy interventions to reduce sight loss and improve equity in diabetes management.
 
+```{=html}
 <!-- METHODS: We analyzed municipality-level data from 2011 to 2023, focusing on adults aged ≥ 15 years diagnosed with type 2 diabetes mellitus (T2DM) and covered by the public health scheme. Data were sourced from the Statistical and Health Information Department, which provides T2DM management metrics through the CHP.[@deis] We used two outcome indicators: the proportion of T2DM patients achieving target glycemic control (HbA1c \< 7%), referred to as diabetic glycemic control coverage (DGCC), and those undergoing annual diabetic retinopathy screening (DRS). DGCC represents the percentage of the T2DM population maintaining an HbA1c level below 7%, while DRS coverage (DRSC) indicates the percentage undergoing annual DRS. Numerators for both metrics were based on the population with glycemic control \< 7% for DGCC and those undergoing annual DRS for DRSC, with the denominator equal to the total T2DM population. Municipalities in the lowest population size quintile were excluded due to their limited T2DM population representation. Due to the incomplete availability of sex-specific data, integrated data were used. To test the associations between various socio-demiographics factors and class membership coverage, we considered deprivation, urbanicity, and geographical location.
 
 For deprivation, we utilized the index of socioeconomic development (ISDE) score, developed in 2013 by the Chilean Observatory of Public Health (OCHISAP). This index evaluates local deprivation levels (ranging from 0 to 1, with lower scores indicating greater deprivation) and comprises three components: income, education, and housing and sanitation.[@gattini_comunas_2013]
@@ -240,63 +234,53 @@ Second, we examined the factors influencing membership across different trajecto
 All statistical analyses were implemented using R version 4.3.1 and the "lcmm" package version 2.1.0.
 
 -->
+```
 
 # Methods
 
-## Data sources
+## **Study design and data sources**
 
-We analyzed municipality-level data from 2011 to 2023, focusing on adults aged ≥ 15 years who were diagnosed with T2DM under the public health scheme. This age threshold aligns with the cardiovascular program guidelines, which include patients aged 15 and above. Data on T2DM management were sourced from the Statistical and Health Information Department and accessed through the Chilean Public Health Platform (CHP).[@deis]
+We conducted a retrospective observational study using annually reported municipality-level health data from 2011 to 2023. Although the data consist of repeated cross-sectional observations collected independently each year, they were analyzed longitudinally to capture temporal patterns and trajectories of care coverage across municipalities. To achieve this, we applied latent class mixed models (LCMM), a probabilistic approach that identifies distinct latent trajectories within heterogeneous populations and is well suited for repeated observations at the aggregate level.[@berlin_introduction_2014] This approach provided a solid foundation for assessing coverage patterns over time.
 
-We examined two primary outcome indicators:
+Our analysis focused on adults aged ≥15 years diagnosed with type 2 diabetes mellitus (T2DM) under the Chilean public health system, consistent with the age threshold established by national cardiovascular program guidelines. Data on T2DM care indicators were sourced from the Statistical and Health Information Department via the Chilean Public Health Platform.[@deis] The data were provided in a curated format as summary indicators at the health centre level and subsequently aggregated at the municipality level for analysis. These data sources laid out the basis for constructing outcomes indicators.
 
--   **DGC Coverage (DGCC):** The Proportion of T2DM patients achieving HbA1c \<7% among those diagnosed and monitored by the cardiovascular program.
+We examined two primary outcomes: diabetic glycemic control coverage (DGCC) and diabetic retinopathy screening coverage (DRSC). DGCC was defined as the proportion of T2DM patients achieving HbA1c \<7% among those monitored annually, while DRSC was defined as the proportion of T2DM patients receiving an annual retinopathy screening. These indicators reflect key aspects of quality in diabetes care provision, offering insight into both metabolic control and preventive screening efforts. It is also important to consider the scope and limitations of these indicators as represented in the dataset, since their interpretation depends on how each was operationalized in the data.
 
-    **DRSC:** Proportion of T2DM patients receiving annual diabetic retinopathy screening within the diagnosed and monitored T2DM population under the cardiovascular program.
+For DGCC, patients without HbA1c testing were excluded from the cardiovascular program after three unsuccessful contact attempts and were therefore not included in the dataset. As a result, the dataset includes only individuals with at least one recorded HbA1c measurement within the calendar year, and those without testing were not assumed to have HbA1c \>7%. This ensures that DGCC reflects actual glycemic control rather than assumptions about missing data. The inclusion process for DRSC was structured differently.
 
-For the DGCC indicator, it was assumed that T2DM patients had at least one HbA1c test to determine if levels were above or below 7%. If the patients were not tested at the end of the 12-month period, a recovery protocol was initiated. After three failed attempts to contact them, the patients were removed from the program and dataset. Thus, untested patients were excluded and not assumed to have HbA1c levels \> 7%. Conversely, patients undergoing annual DRS remain in the cardiovascular healthcare program.
+For DRSC, all diagnosed patients remained in the cardiovascular program regardless of whether they attended their annual diabetic retinopathy screening. Hence, all patients were retained in the denominator for this indicator. These inclusion criteria were established by the health system prior to data aggregation.
 
-To improve representativeness, we excluded municipalities in the lowest population-size quintile. These smaller municipalities often showed extreme coverage percentages (e.g., 0% or 100%) because of their small T2DM populations, which could have skewed the results.
+To improve representativeness, we excluded municipalities in the lowest population-size quintile. These smaller municipalities often exhibited extreme coverage percentages (e.g., 0% or 100%) due to the limited size of their T2DM populations, which could have disproportionately influenced overall estimates and introduced bias into the trajectory modeling. Excluding these municipalities minimized the risk of bias in trajectory estimation and provided a clearer understanding of the relationship between coverage trajectories and key municipal-level characteristics.
 
-We examined the associations between class membership coverage and sociodemographic factors including deprivation, urbanicity, and geographical location. Data on potential predictive factors at the municipal level were collected as follows:
+We also examined associations between coverage trajectories and key municipal-level characteristics: deprivation, urbanicity, and geographical location. Deprivation was measured using the standardized Index of Socioeconomic Development (ISED), which ranges from 0 (most deprived) to 1 (least deprived) and incorporates indicators such as income, education, housing, and sanitation.[@gattini_comunas_2013] Urbanicity classification followed national guidelines, categorizing municipalities as predominantly rural, mixed, or predominantly urban.[@bergamini2020] Geographical zones were defined using the Environmental Tribunals’ classification, which divides the country into northern, central, and southern zones. These variables were incorporated into the second stage of the analysis
 
--   **Deprivation:** The Chilean Observatory of Public Health developed the Index of Socioeconomic Development (ISED) score, which measures deprivation from 0 to 1, with lower scores indicating greater deprivation. This index encompasses income, education, housing, and sanitation.[@gattini_comunas_2013] To meet the distributional assumptions necessary for subsequent analyses, we standardized the ISED, resulting in a modified scale with an expanded range of values.
+## **Statistical analysis**
 
--   **Urbanicity:** Based on classifications by the National Statistics Institute and following the National Policy of Rural Development Framework.[@bergamini2020] Municipalities were categorized based on population density as predominantly rural (more than 50% of the population residing in low-density areas), mixed (25–49% in low-density areas), and predominantly urban (less than 25% in low-density areas).
+We conducted a two-stage analysis to identify coverage trajectory patterns and explore their sociodemographic determinants. In the first stage, we applied latent class mixed models (LCMM) to identify trajectory classes for DRSC and DGCC from 2011 to 2023. LCMM probabilistically assigns latent classes that represent distinct coverage patterns within the population.[@berlin_introduction_2014] In the second stage, we examined whether key municipal-level characteristics were associated with trajectory class membership, following a framework based on established modelling approaches.[@lennon2018] This structure allowed us to both classify trajectory profiles and assess the contextual factors potentially shaping them.
 
--   **Geographical Location:** We used the Environmental Tribunals of Chile classification, which divides the country into northern, central, and southern zones. This classification simplifies the geographical locations of municipalities into three levels.
+The modelling process began with the construction of a linear fixed-effects scoping model, estimating one to seven latent classes to explore plausible trajectory structures in the absence of prior literature to guide assumptions about class number. Residual patterns from these preliminary models were then used to inform the specification of random effects: flat residuals suggested a random intercept, linear trends indicated a random slope, parabolic curves suggested a quadratic term, and more complex curvatures a cubic term.[@molenberghs_model_2009] This step provided a foundation for refining the optimal model based on fit criteria.
 
-## Statistical analyses
+After determining the optimal number of classes based on the lowest Bayesian Information Criterion (BIC), we refined the model by testing alternative structures. These included homoscedastic and heteroscedastic models, as well as models with random intercepts or higher-order random effects (see Supplementary Table S1). Model adequacy was assessed using standard criteria: average posterior probability of assignment (APPA \>0.70), odds of correct classification (OCC \>5), relative entropy (\>0.6), mismatch values close to 0, and a minimum class size of 5% of the sample. The 5% threshold was set to ensure meaningful class interpretation in a moderately sized population. If the criteria were not met, the number of classes and model structure were adjusted to enhance classification quality and model fit, and we considered an alternative model with a higher BIC value. We determined the optimal model structure by selecting the one with the lowest BIC value that met the required criteria from the model adequacy assessments. Once we finalized the number of classes and model structure selection and ensured its adequacy, we proceeded to visualize the model outcomes in the different model structures (See Supplementary Material S1)
 
-We performed a two-stage analysis, as follows:
+We used three graphical presentation approaches to visualize model outcomes. The conventional approach involved plotting mean trajectories with time for each class. Additionally, we used mean trajectory plots with 95% predictive intervals for each class, which display the predicted random variation within each class. Another approach was to plot individual-level "spaghetti plots" with time (e.g., using a random sample of participants), allowing the reader to observe changes within classes over time. These three graphical techniques helped provide a comprehensive understanding of the class-specific trajectories. We have also used additional tools for model discrimination.
 
--   In the first stage, we employed a Latent Class Mixed Model (LCMM) to identify trajectory classes for DRSC and DGCC from 2011 to 2023. LCMM probabilistically assigns latent classes representing subgroups or unique patterns within a population.[@berlin_introduction_2014]
+We assessed model discrimination using degrees of separation (DoSK) and Elsensohn’s envelope of residuals. To describe latent trajectory separation, we applied multivariate Mahalanobis distance to help identifying heterogeneous latent trajectories. Thus, higher DoSK values indicate well-separated mean trajectories, while a DoSK of zero indicates identical trajectories suggesting selection for alternative models with fewer classes.
 
-    Following a eight step framework, we built a latent class trajectory model, using the step description and criteria for selection[@lennon2018] (See supplementary Material):
+We extended Elsenhohn et al.'s method used in fixed effects to random effects models. We calculated residuals for each participant and class-specific, time-specific weighted variances using posterior probabilities. We then plotted the upper and lower boundaries of the residuals' local SDs for each class. Non-parallel boundaries indicated heteroscedasticity, suggesting poor model fit, while varying interval widths pointed to unaccounted class variability. This method helped identify potential model issues, guiding necessary refinements for better fit.
 
-    -   1\. We initially fitted a scope models to determine the random effects structure of the modelling by examining the shape of the standarsized residuals in a simple linear model with no random effects following the rationale of Verbeke and Molenbergh.[@molenberghs_model_2009] A scoping model might be built based on the plausible number of classes found in previous literature. As we had no available literature about this kind of trajectories studies, we did not hypothesized regarding the class number. We examined the plotted shape of the standarised residuals from these derived models for each of the classes from 1 to 7 seven class-models. Residual patterns guide the selection of a suitable random effects structure. A horizontal line suggests a random intercept model suffices. A diagonal line indicates a linear random effect may be appropriate. A curved pattern suggest a quadratic random effect, while an s-shaped pattern supports a cubic random effect. These visual cues determine the necessary complexity for the random effects component of the model.
+Sensitivity analyses were conducted by replicating the modelling on subsets of the population with at least three time-point observations to test classification robustness. After this step, we will assess the interpretability of the favoured model.
 
-    -   2\. We use two mail tools: BIC and sample size. We explored model complexity from one to seven classes,[@lennon2018] in our preliminary working models. As we had no clue about of the plausible number, we use the BIC as the main tool for selecting the optimal class number. The nature of this research where the number of individuals (municipalities) is limited, so in studies with larger number suggested 1% as plausible. However we have assumed at this stage that models representing a sample size under 3% were (less than nine municipaties) were discarded before hand.
+In the second stage, we examined whether municipality-level characteristics (deprivation, urbanicity, and geographical location) predicted class membership using lineal regression model. The ISED score was standardized to meet distributional assumptions, and both unadjusted and adjusted models were fitted to evaluate the strength and consistency of these associations.
 
-    -   3\. Once we defined our preliminary working model and the plausible optimal number of classes, we refined the model structure in the selected class memebership of our working model in eight different modelling assumptions checking; 1) fixed linear effects homocedasctic; 2) fixed linear effects heterocedastic; 3) Random intercept; 4) Random intercept slope; 5) Random quadratic, equal; 6) Random quadratic proportional; and 7) Random cubic, equal, and; 8)Random cubic, proportional. (See table X).
+All analyses were conducted in R version 4.4.2, with latent class trajectory modelling performed using the `lcmm` package (version 2.1.0). Additional data processing and visualization tasks were supported by other R packages as appropriate.
 
-    -   4\. Once selected the model structure best fits, we assesed a complete mpodel adequacy assesment. Foe each municipality we calculated the posterior probability to be assigned to each trajectoryminimun Average Latent Class Posterior Probability (ALCPP) including Akaike Information Criteria (AIC), sample-adjusted Bayesian Information Criteria (SABIC), Consistent Akaike Information Criterion (CAIC), Approximate Weight of Evidence Criterion (AWE), Bayes Factor (BF), and correct model probability (cmP). Diagnostic tests included entropy, smallest class count (SCC), size (SCS), and , along with the Vuong-Lo-Mendell-Rubin (VLMLRT) test to compare the models; we favored the k-class model over the k-1 class model when the p-value was below 0.05, considering clinical plausibility, model fit, and diagnostic criteria.[@wickrama2021]
+This study adhered to the Guidelines for Reporting on Latent Trajectory Studies (GRoLTS) to ensure transparency and replicability in reporting [@vandeschoot2016].
 
-    -   5\. We plotted mean trajectories for each class in a single graph and then plotted individually every class with their respective confidence interval (CI), as well as a individual class spaghetti plots for a random sample.
+### **Ethics, Funding and Public Involvement**
 
-    -   6\. We run additional tools to further assess discrimintaion including Degrees of Separation (DoS) and Elsensohn’s envelope of residuals. INCLUIR LOS MODELOS DE GRAFICOS DE STEP 1 EN STEP 6
+This study was based on publicly available, aggregate municipality-level data without individual identifiers; therefore, ethical approval was not required. Patients or members of the public were not involved in the design, conduct, or analysis of this study. We plan to disseminate the findings through academic conferences and by engaging with public policy stakeholders and health authorities to support evidence-informed decision-making.
 
-    -   7\. We consider epidemiological plausibility characterisation. Ideally classes not be too skewed with some sample sizes less than arguing about less than 5% of the sample, but our sample is still keep a significant amount of municipalities under 8. We conducted a sensitivity analysis by default covering 2011 to 2019 to assess the potential impact of excluding the pandemic years (2019–2023) on the DRSC and DGCC trajectories. We also assessed data completeness across observations over time, comparing means using Welch’s t-test to ensure balanced data distributions across trajectory classes.
-
-    In addition reported our LCMM analysis using the guidelines for reporting on latent trajectory studies (GRoLTS).[@vandeschoot2016]
-
-<!--
- 
--->
-
--   Class Membership Influences: In second stage, we analyzed whether municipality-level factors (deprivation, urbanicity, and geographical location) influenced the trajectory class membership. The ISED score was standardized after verifying the distributional assumptions for the logistic regression models, and all analyses were conducted using the standardized score. Both adjusted and unadjusted analyses were conducted to validate these associations.
-
-All statistical analyses were performed using R version 4.3.1 and the “lcmm” package version 2.1.0.
-
+```{=html}
 <!--
 The DGCC and DRSC raw trajectories over the twelve-year period are presented in Figure 1 (panel a and b, respectively), showing unclear patterns. Figure 1 depict 300 trajectories for each set, with DGCC appearing to be less heterogeneous than DRSC. Data averaged a 91.08% (10.93 years) of completeness for DGCC and 87.4% (10.5 years) for DRSC over the twelve-year period. Table 1 displays the LCMM results for DGCC and DRSC outcomes. A one-class model using a simple linear model predicts coverage and cluster membership, with intercepts representing baseline coverage and slopes indicating average annual change. For the one-class model (Table 1), the DGC started with a baseline coverage of 47.2% (SE 0.53) and a significant yearly decrease of 1.18% (SE 0.057, *p\<0.001*). For DGCC, the one-class model represents the overall trend, as illustrated in Figure 1c. For DRS, the one-class model exhibited a baseline coverage of 32.3% (SE 1.19) and a slight but significant annual increase of 0.30% (SE 0.14, *p=0.03*), as depicted in Figure 1d.
 
@@ -310,6 +294,7 @@ In the 2011-2019 period (n=292 municipalities), data averaged a 93.46% (8.41 yea
 For the DRSC, Class 1 (217 municipalities - 74.32%; lower DRSC) began in 2011 at 23.05% (SE 1.65) and exhibited a gradual increase to 2019 at an annual rate of 1.38% (SE 0.30). In contrast, Class 2 (75 municipalities - 25.68%; higher DRSC) started with a substantial coverage of 43.58% (SE 4.3) in 2011 and experienced a faster increase through 2019 at a rate of 2.16% per annum (SE 0.69). Notably, both trajectories displayed statistically significant slopes (wald's test p\<0.01). The overall completeness of the data for DRSC was 90.17% (8.11 years) for Class 1 and 88.3% (7.95 years) for Class 2. No significant differences were detected between classes in terms of completeness (p=0.524, Welch's t-test).
 
 -->
+```
 
 # Results
 
@@ -317,21 +302,43 @@ For the DRSC, Class 1 (217 municipalities - 74.32%; lower DRSC) began in 2011 at
 
 We analyzed 300 municipalities during the 2011-2023 period and 292 municipalities during the 2011-2019 period. The trajectories of the DGCC and DRSC over these periods exhibited notable differences. The summary statistics for both outcomes and sociodemographic characteristics are presented in Tables 1 and 2, respectively. Figure 1 (panels a and b) depicts the temporal evolution of municipalities through line trajectories, with individual data points representing the annual coverage values. The longitudinal trajectories of DGCC and DRSC over the 13-year period exhibit unclear patterns, with DRSC showing greater heterogeneity than DGCC. The overall one-class baseline pattern for DGCC revealed a decline in adequate glycemic control over time, while the trajectories for DRSC displayed a rising trend.
 
+1.  For both of our outcomes DRSC and DGCC our preliminary structures by the standardized pattern plots suggested a cubic pattern in the 2011-2023, and a quadratic or cubic pattern for the 2011-2019 period.
+2.  After testing 1-7 classes in cubic models for 2011-2023, we have inclined by our top BIC performers, in this case for 2 or 3 classes for DGCC and DRSC. In the 2011-2019 period in their the top performers BIC for DGCC were 4 class model in a cubic structure and 3 class model for a quadratic one, while 3 for a cubic structure and 2 class for a qudrattditc one in DRSC.
+3.  We have checked the structure by two and three model class in the eight models structure and confirmed that quadratic and cubic structure are the most bets BIC performers for DRSC in and DGCC in the 2011-2023. Also for the period 2011-2019 we found 2 and 3 claases model as the best performs for DRSC, and 3 and 4 model class in cubic and cuadratic forms for DGCC, respectively.
+4.  The top performer in the first approach for 2 and 3 classes was three class model in a cubic structure for DRSC; and 3 and 4 clas model for DGCC in a qudratic and cubic structure respectively.
+    1.  For DRSC in 2011-2023 period, our best BIC if for the two-class in a linear random intercept struicture model in the OCC restricted model, while the unrestricted model althouygh was the two-class cubic model. Even when the lowest OCC in the lñast model 3.152 has a considerable highetst BIC best fit structure a for a two class in a cubic model. ALythought the restricted model has more balanced trajectoiries (52 vs 48%), our cubic two classes model offers better fit structure, better entropy and more than acceptable 70% the minim APPA, so this is or selected model. For the same outcome, in 2011-2019, in the restrcicted OCC approach, we obtained the three class model in a linear fixed effect6s, however, the BIC is far higher in the unrestricted OCC but diusvanteged in the lowest trajectory OCC (3.0). When we look at to others cñlasses step back, looking for a better OCC, we found a less parsimonius and less likelihood measures. So our selection its two model class in a quadratic structure.
+        -   For DRSC in 2011-2023 = two-class model cubic structure
+        -   For DRSC in 2011-2019 = two-class model quadratic structure
+    2.  For DGCC in 2011-2023 period, the unrestricted OCC approach has better perormace in two-class model in the linear random incepcept structure for classification (OCC\>5.170), but no better than the unrestricted OCC approach. which has a higher performace in likelihood based metrics, with an accetable OCC of 4.125 and far higher the restricted model (0.59 vs 0.89), therefore we have in line by the two-model class cubic structure. For the period 2011-2019 the restyricted model shows best fit for four-class model, howvwer we found a better structure (BIC -1689) fit in the unresyricted model but gettin a lower OCC in a three class cuadratic model but mostr parsimonius (simple - with a loww number of parameters). So we have step back to corroborate our results looking for othe class model palusibity and we found that class 2 in quadratic structure offer just two classes, but one additional trajectory derived form the larger one, so althoght has a worse correct classification, this structure offer best BIC a most parsimounus one snd meaningful trajectories, so finally we have in clined by 2 classes in a quadratic structure.
+        -   For DGCC in 2011-2023 = two-class model cubic structure
+        -   For DGCC in 2011-2019 = two-class model quadratic structure
+5.  
+
 When the sample size is small, **prioritize likelihood-optimized models**. The likelihood-based metrics (AIC, BIC, log-likelihood) help ensure that the model is not overfitting the small sample, whereas classification metrics might be more prone to instability and overfitting in such cases. Likelihood-based models are more likely to generalize better when the sample size is limited, reducing the risk of spurious or unreliable classification outcomes.
 
-Model fit statistics for the LCMM for both DGCC and DRSC are summarized in Table 3. Baseline one-class from our final random intercept model structure for DGCC coverage was slightly higher in the 2011-2023 period (46.7%) than in the 2011-2019 period (45.1%). However, both periods exhibited a significant decline in annual coverage: a -1.03% change per year (p \< 0.001) for 2011-2023 and -0.42% per year (p \< 0.001) for 2011-2019. In contrast, DRSC coverage increased from 28.5% in 2011-2019 to 31.3% in 2011-2023. The annual change in DRSC was more pronounced in the shorter period, with an increase of 1.59% per year (p \< 0.001), compared with 0.5% per year (p \< 0.001) in the longer period.
+Model adecquacy for the LCMM for both DGCC and DRSC are summarized in Table 3.
+
+<!-- Baseline one-class from our final random intercept model structure for DGCC coverage was slightly higher in the 2011-2023 period (46.7%) than in the 2011-2019 period (45.1%). However, both periods exhibited a significant decline in annual coverage: a -1.03% change per year (p < 0.001) for 2011-2023 and -0.42% per year (p < 0.001) for 2011-2019. In contrast, DRSC coverage increased from 28.5% in 2011-2019 to 31.3% in 2011-2023. The annual change in DRSC was more pronounced in the shorter period, with an increase of 1.59% per year (p < 0.001), compared with 0.5% per year (p < 0.001) in the longer period.-->
 
 ## Latent Class Trajectory Models
+
+The analysis examined temporal trends in Diabetic Retinopathy Screening Coverage (DRSC) for two latent classes over the study period (2011-2023). Posterior classification: class1 class2 N 242.00 58.00 % 80.67 19.33. The results revealed that, at the baseline (2011), individuals in the **Moderate Coverage Group** (Class 1) had a DRSC coverage of 13.1%, while individuals in the **High Coverage Growth Group** (Class 2) had a DRSC coverage of 16.2%. Over time, DRSC coverage increased for both groups, with the **Moderate Coverage Group** showing an annual increase of 8.8% and the **High Coverage Growth Group** showing a more pronounced increase of 21.1% per year. However, the quadratic terms suggest that the rate of increase slowed down as the years progressed, and the cubic terms indicate a slight re-acceleration in the later years of the study. These trends were statistically significant (p \< 0.01 for all terms), indicating a strong relationship between DRSC coverage and time for both groups.
+
+The analysis examined temporal trends in Diabetic Retinopathy Screening Coverage (DRSC) for two latent classes over the study period (2011-2019). Posterior classification: class1 class2 N 247.00 53.00 % 82.33 17.67. The results revealed that, at the baseline (2011), individuals in the **Moderate Coverage Group** (Class 1) had a DRSC coverage of 21.7%, while individuals in the **High Coverage Growth Group** (Class 2) had a DRSC coverage of 29.6%. Over time, DRSC coverage increased for both groups. The **Moderate Coverage Group** showed a modest annual increase of 1.3%, while the **High Coverage Growth Group** experienced a more pronounced annual increase of 8.9%. However, the quadratic term for the **High Coverage Growth Group** indicated that the rate of increase slowed down after 2011, with the quadratic term being negative (-0.7%), while the quadratic term for the **Moderate Coverage Group** was not statistically significant, suggesting that the rate of increase remained relatively steady. These trends were statistically significant (p \< 0.01 for Class 2's quadratic term), indicating a strong relationship between DRSC coverage and time for both groups.
+
+The analysis examined temporal trends in Diabetic Glycemic Control Coverage (DGCC) for two latent classes over the study period (2011-2023). Posterior classification: class1 class2 N 279 21 % 93 7. The results revealed that, at the baseline (2011), individuals in the **Moderate Coverage Growth** class had a DGCC of 35.0%, while individuals in the **Rapid Coverage Growth** class had a DGCC of 24.1%. Over time, DGCC coverage increased for both classes. The **Moderate Coverage Growth** class showed a more moderate annual increase of 6.5%, while the **Rapid Coverage Growth** class experienced a more pronounced annual increase of 19.5%. However, the quadratic term for the **Moderate Coverage Growth** class indicated that the rate of increase slowed over time, while the quadratic term for the **Rapid Coverage Growth** class also suggested a deceleration in the growth rate, with both quadratic terms being statistically significant (p \< 0.01). These trends were statistically significant (p \< 0.01 for all terms), indicating a strong relationship between DGCC coverage and time for both classes.
+
+The analysis examined temporal trends in Diabetic Global Control Coverage (DGCC) for two latent classes over the study period (2011-2019). Posterior classification: class1 class2 N 17.00 272.00 % 5.88 94.12. The results revealed that, at the baseline (2011), individuals in the High Coverage with Gradual Decline group had a DGCC of 52.9%, while individuals in the High Coverage with Slower Decrease group had a DGCC of 39.5%. Over time, DGCC coverage increased for the High Coverage with Gradual Decline group, while the High Coverage with Slower Decrease group showed a decline. The High Coverage with Gradual Decline group experienced a slight annual decrease of 5.5%, with a positive quadratic term indicating that the rate of decline slowed over time. In contrast, the High Coverage with Slower Decrease group saw a more substantial annual decrease of 2.9%, but the negative quadratic term indicated that the decline rate was accelerating. These trends were statistically significant (p \< 0.01 for all terms), indicating a strong relationship between DGCC coverage and time for both groups.
+
+The analysis examined temporal trends in Diabetic Retinopathy Screening Coverage (DRSC) for two latent classes over the study period (2011-2023). The results revealed that, at the baseline (2011), Class 1 individuals had a DRSC coverage of **13.1%**, while Class 2 individuals had a DRSC coverage of **16.2%**.
+
+Over time, DRSC coverage increased for both classes, with Class 1 showing an annual increase of **8.8%** and Class 2 showing a more pronounced increase of **21.1%** per year. However, the quadratic terms suggest that the rate of increase slowed down as the years progressed, and the cubic terms indicate a slight re-acceleration in the later years of the study.
+
+These trends were statistically significant (p \< 0.01 for all terms), indicating a strong relationship between DRSC coverage and time for both classes. The model fit was good, as indicated by the AIC and BIC values.
 
 After evaluating models with between one and seven latent classes, the two-class model was identified as the most suitable for DRSC (Supplementary Material). While models with more latent classes achieved slightly lower Bayesian information criterion (BIC) values, the reduction in BIC became negligible beyond five classes. Moreover, models with additional classes demonstrated substantially lower entropy (indicating reduced information quality) and included rare subclasses that overlapped with those in simpler models. As a result, the two-class model was chosen for its balance between fit and simplicity.
 
 For DGCC, the one-class model was selected as the most parsimonious solution, outperforming all other models for both–2011-2023 and 2011-2019 periods. For the DRSC, the two-class model was chosen as the optimal solution for both periods (Table 3).
-
-Figure 2 presents the LCMM results for DRSC, where two classes are identified:
-
--   **Class 1** (lower DRSC coverage) showed a stable baseline coverage and minimal annual changes. For the 2011-2023 period, the baseline coverage was 24.8%, with an annual change of 0.42% (p = 0.068). In the 2011-2019 period, Class 1 had a baseline coverage of 23.05%, with an annual change of 1.38% (p \< 0.001), while in the 2020-2023 period, the baseline coverage was 15.8%, with an annual increase of 8.3% (p \< 0.001).
-
--   **Class 2** (higher DRSC coverage) exhibited higher baseline coverage and notable annual changes. In the 2011-2023 period, the baseline coverage was 43.72%, with an annual change of 0.69% (p = 0.073). In the 2011-2019 period, Class 2 had a baseline coverage of 43.58%, with an annual change of 2.16% (p = 0.0017), while in the 2020-2023 period, the baseline coverage was 47.41%, with an annual increase of 3.82% (p \< 0.016).
 
 These trajectory classes reflect significant differences in both baseline coverage and annual changes over the study period.
 
@@ -341,40 +348,201 @@ We analyzed the effects of various factors on DRSC class membership, and the res
 
 ### Deprivation
 
+#### DRSC
+
 Our analysis revealed significant associations between deprivation and DRSC class membership in both the periods. Higher deprivation (lower ISED scores) was associated with a decreased likelihood of being in a higher DRSC coverage class. The odds ratios (OR) for this association were:
 
--   **2011-2023 period**: OR = 0.66 (95% CI: 0.50, 0.85)
+-   **2011-2023 period**: (
 
--   **2011-2019 period**: OR = 0.53 (95% CI: 0.39, 0.72)
+    -   Logit(class_membership \~ index_standardized, data=data_reglog_drsc_2011_2023)
 
--   **2020-2023 period**: OR = 0.67 (95% CI: 0.49, 0.92)
+        Data Frame: data_reglog_drsc_2011_2023
+
+        Response Variable: class_membership Predictor Variable 1: index_standardized
+
+        Number of cases (rows) of data: 345 Number of cases retained for analysis: 300
+
+        BASIC ANALYSIS
+
+        -- Estimated Model of class_membership for the Logit of Reference Group Membership
+
+        ```         
+                        Estimate    Std Err  z-value  p-value   Lower 95%   Upper 95%
+           (Intercept)   -1.5017     0.1557   -9.643    0.000     -1.8069     -1.1964 
+           index_standardized -0.5226 0.1641 -3.185 0.001 -0.8442 -0.2010
+        ```
+
+        -- Odds Ratios and Confidence Intervals
+
+        ```         
+                        Odds Ratio   Lower 95%   Upper 95%
+           (Intercept)      0.2228      0.1642      0.3023 
+           index_standardized 0.5930 0.4299 0.8179
+        ```
+
+        -- Model Fit
+
+        ```         
+        Null deviance: 294.612 on 299 degrees of freedom
+        ```
+
+        Residual deviance: 283.582 on 298 degrees of freedom
+
+        AIC: 287.5819
+
+-   **2011-2019 period**: OR = 0.60 (95% CI: 0.44, 0.83)
+
+    -   Logit(class_membership \~ index_standardized, data=data_reglog_drsc_2011_2019)
+
+        Data Frame: data_reglog_drsc_2011_2019
+
+        Response Variable: class_membership Predictor Variable 1: index_standardized
+
+        Number of cases (rows) of data: 345 Number of cases retained for analysis: 288
+
+        BASIC ANALYSIS
+
+        -- Estimated Model of class_membership for the Logit of Reference Group Membership
+
+        ```         
+                        Estimate    Std Err  z-value  p-value   Lower 95%   Upper 95%
+           (Intercept)   -1.3873     0.1524   -9.102    0.000     -1.6861     -1.0886 
+           index_standardized -0.5064 0.1627 -3.113 0.002 -0.8252 -0.1876
+        ```
+
+        -- Odds Ratios and Confidence Intervals
+
+        ```         
+                        Odds Ratio   Lower 95%   Upper 95%
+           (Intercept)      0.2497      0.1852      0.3367 
+           index_standardized 0.6027 0.4382 0.8290
+        ```
+
+        -- Model Fit
+
+        ```         
+        Null deviance: 294.762 on 287 degrees of freedom
+        ```
+
+        Residual deviance: 284.256 on 286 degrees of freedom
+
+        AIC: 288.2564
+
+        Number of iterations to convergence: 4
+
+    -   
 
 These findings indicate that municipalities with higher deprivation scores (less deprived) are less likely to belong to the higher-coverage DRSC class.
 
+#### DGCC
+
+Our analysis revealed non significant associations between deprivation and DGCC class membership in both the periods. The odds ratios (OR) for this association were:
+
+-   **2011-2023 period**: OR = 0.84 (95% CI: 0.53, 1.33)
+
+    -   Logit(class_membership \~ index_standardized, data=data_reglog_drsc_2011_2023)
+
+        Data Frame: data_reglog_drsc_2011_2023
+
+        Response Variable: class_membership Predictor Variable 1: index_standardized
+
+        Number of cases (rows) of data: 345 Number of cases retained for analysis: 300
+
+        BASIC ANALYSIS
+
+        -- Estimated Model of class_membership for the Logit of Reference Group Membership
+
+        ```         
+                            Estimate    Std Err  z-value  p-value   Lower 95%   Upper 95%
+               (Intercept)   -2.5980     0.2287  -11.358    0.000     -3.0463     -2.1496 
+        index_standardized   -0.1767     0.2353   -0.751    0.453     -0.6378      0.2844 
+        ```
+
+        -- Odds Ratios and Confidence Intervals
+
+        ```         
+                            Odds Ratio   Lower 95%   Upper 95%
+               (Intercept)      0.0744      0.0475      0.1165 
+        index_standardized      0.8380      0.5284      1.3290 
+        ```
+
+-   **2011-2019 period**: OR = 0.92 (95% CI: 0.56, 1.5)
+
+    -   Logit(class_membership \~ index_standardized, data=data_reglog_drsc_2011_2019)
+
+        Data Frame: data_reglog_drsc_2011_2019
+
+        Response Variable: class_membership Predictor Variable 1: index_standardized
+
+        Number of cases (rows) of data: 345 Number of cases retained for analysis: 288
+
+        BASIC ANALYSIS
+
+        -- Estimated Model of class_membership for the Logit of Reference Group Membership
+
+        ```         
+                            Estimate    Std Err  z-value  p-value   Lower 95%   Upper 95%
+               (Intercept)    2.7784     0.2514   11.050    0.000      2.2856      3.2712 
+        index_standardized   -0.0825     0.2491   -0.331    0.740     -0.5707      0.4057 
+        ```
+
+        -- Odds Ratios and Confidence Intervals
+
+        ```         
+                          Odds Ratio   Lower 95%   Upper 95%
+               (Intercept)     16.0925      9.8311     26.3416 
+        index_standardized      0.9208      0.5651      1.5003 
+        ```
+
+    -   
+
+These findings indicate that municipalities with higher deprivation scores (less deprived) are less likely to belong to class 2 lower dgcc class, yet not significant.
+
 ### Urbanicity
+
+#### DRSC
 
 Urbanicity has a varied impact on DRSC coverage, with rural areas generally showing higher odds of improved coverage than mixed-urban zones.
 
--   **2011-2023 period**: Rural areas had an OR of 1.79 (95% CI: 0.99, 3.21), indicating higher odds of being in the higher coverage class compared to mixed urban areas (reference category), although this was not statistically significant. Urban areas had an OR of 0.39 (95% CI: 0.17, 0.84), showing significantly lower odds of belonging to the higher DRSC class compared to mixed urban areas.
+-   **2011-2023 period**: lowerLower of 2.2 (95% CI: 1.07, 4.5), indicating higher odds of being in the higher coverage class compared to mixed urban areas (reference category). Urban areas had an OR of 0.43 (95% CI: 0.15, 1.22), showing lower odds of belonging to the higher DRSC class compared to mixed urban areas yest not statistically significant.
 
--   **2011-2019 period**: Rural areas had an OR of 2.73 (95% CI: 1.41, 5.30), indicating significantly higher odds of being in the higher coverage class compared to mixed zones. Urban areas had an OR of 0.45 (95% CI: 0.18, 1.19), suggesting lower odds of being in the higher coverage class relative to the reference group, although this was not significant.
-
--   **2020-2023 period**: Rural areas had an OR of 2.26 (95% CI: 1.08, 4.74), whereas urban areas had an OR of 0.48 (95% CI: 0.17, 1.37) relative to mixed areas.
+-   **2011-2019 period**: Rural areas had an OR of 2.97 (95% CI: 1.42, 6.2), indicating significantly higher odds of being in the higher coverage class compared to mixed zones. Urban areas had an OR of 0.56 (95% CI: 0.21, 1.55), suggesting lower odds of being in the higher coverage class relative to the reference group, although this was not significant.
 
 Overall, rural municipalities tended to have higher DRSC coverage, whereas urban municipalities showed more variable results.
 
+#### DGCC
+
+Urbanicity has a varied impact on DRSC coverage, with rural areas generally showing higher odds of improved coverage than mixed-urban zones.
+
+-   **2011-2023 period**: Rural areas had an OR of 0.72 (95% CI: 0.29, 1.79), indicating higher odds of being in the higher coverage class compared to mixed urban areas (reference category). Urban areas had an OR of 0 compared to mixed urban areas yest not statistically significant, this is because the lower number of the smaller sample size in not belonging to urban areas, and therefore not posble computing them. (21 municiplities assigned to the smaller class)
+
+-   **2011-2019 period**: Rural areas had an OR of 2.44 (95% CI: 0.74, 7.99), indicating significantly higher odds of being in the higher coverage class compared to mixed zones. Urban areas had an OR of 2.68 (95% CI: 0.85, 8.47), suggesting was not significant.
+
+-   
+
 ### Geographical Location
+
+#### DRSC
 
 Geographical location significantly influenced DRSC class membership, with the central region serving as the reference category because of its representative demographic profile and generally better access to healthcare service provision.[@núñez2021]
 
--   **2011-2023 period**: The southern region had an OR of 1.85 (95% CI: 1.10, 3.08), compared to the central region (reference category), while the northern region had a relatively neutral impact which had an OR of 1.02 (95% CI: 0.42, 2.51).
+-   **2011-2023 period**: The southern region had an OR of 1.74 (95% CI: 0.96, 3.16), compared to the central region (reference category), while the northern region had a relatively neutral impact which had an OR of 0.60 (95% CI: 0.17, 2.12).
 
--   **2011-2019 period**: The southern region had a higher odds ratio of 1.92 (95% CI: 1.11, 3.34), suggesting a strong positive association with higher DRSC coverage, while the northern region had a relatively neutral impact which had an OR of 0.59 (95% CI: 0.19, 1.83))
-
--   **2020-2023 period**: The southern region had a higher odds ratio of 1.32 (95% CI: 0.72, 2.43), suggesting positive association with higher DRSC coverage but not significative, while the northern region had a relatively neutral impact.
+-   **2011-2019 period**: The southern region had a higher odds ratio of 1.50 (95% CI: 0.84, 2.7), suggesting a trend to being in the hhigher DRSC coverage yet not significant, while the northern region had a relatively neutral impact which had an OR of 0.32 (95% CI: 0.07, 1.44))
 
 These findings indicate that municipalities in the southern region are more likely to achieve higher DRSC coverage than other regions.
 
+#### DGCC
+
+Geographical location significantly influenced DRSC class membership, with the central region serving as the reference category because of its representative demographic profile and generally better access to healthcare service provision.[@núñez2021]
+
+-   **2011-2023 period**: The southern region had an OR of 1.59 (95% CI: 0.57, 4.4), compared to the central region (reference category), while the northern region had a relatively neutral impact which had an OR of 4.19 (95% CI: 1.23, 14).
+
+-   **2011-2019 period**: The southern region had a higher odds ratio of 2.68 (95% CI: 0.85, 8.47), suggesting a trend to being in the hhigher DRSC coverage yet not significant, while the northern region had a relatively neutral impact which had an OR of 0.32 (95% CI: 0.07, 1.44))
+
+These findings indicate that municipalities in the southern region are more likely to achieve higher DRSC coverage than other regions.
+
+```{=html}
 <!--
 ## Unadjusted Associations
 
@@ -409,6 +577,7 @@ Furthermore, the additional analysis covering the 2011-2019 period reaffirmed th
 When adjusting for multiple variables, including classification and zona, the associations observed in the unadjusted analysis persisted. The Rural classification remained significant (OR = 2.24, 95% CI \[1.27, 3.99\], p = 0.005), indicating its robust influence on higher coverage membership. Similarly, the trends towards significance for the Urbana classification and the positive association of the Sur zone with higher coverage membership persisted, although not statistically significant.
 
 -->
+```
 
 # Discussions
 
@@ -448,18 +617,19 @@ Our data on municipality deprivation took place in 2013, but we hypothesized tha
 
 The existence of DGCC in Chilean municipalities appears to follow a single trajectory, whereas the DRSC presents two distinct, gradually increasing trajectories after testing the pandemic period. Higher deprivation levels (lower ISED score) were associated with an increased likelihood of higher DRSC trajectory. It is worthwhile to examine municipalities that demonstrate a higher DRSC trajectory (see [supplementary data](https://github.com/Rolo-Silva/trajectories_diabetes)) in greater detail to identify any shared local policies or practices that may contribute to their positive deviation from national trends in DRSC increase. Future studies should investigate the factors that influence DRSC coverage classes over time, and consider the implications of enhancing health systems in relation to DGCC/DRSC trajectories.
 
+**Acknowledgements**
+
+**Author contribution.**
+
 **Conflict of interest**
 
 Authors declared they have no conflicts of interest.
 
 **Funding**
 
-None.
+This study forms part of the author’s doctoral research, supported by a scholarship from the Chilean National Agency for Research and Development (ANID). Funding to present the results at academic conferences was provided by University College London (UCL). The funders had no role in the design, conduct, analysis, or reporting of the study.
 
-**Acknowledgements**
-
-**Author contribution.**
-
+```{=html}
 <!--
 #| label: fig-1
 #| fig-cap: "Raw data coverage trajectories 2011-2023"
@@ -508,6 +678,7 @@ scale_x_continuous(breaks = c(0:12), labels=2011:2023)+
   scale_color_lancet()
 
 -->
+```
 
 ```{r}
 #| label: fig-1
@@ -1768,7 +1939,6 @@ gt::gt(df_drs_2020_2023) %>%
 #| results: "asis"
 
 
-
 # Model 5: Single predictor (index_standardized)
 model5 <- glm(class_membership ~ index_standardized, family = "binomial", data = d2)
 # Model 5a: Single predictor (classification)
@@ -1970,3 +2140,37 @@ tibble::tibble(
     table_body.border.bottom.color = "black",
     table_body.hlines.color = "white") 
 ```
+
+📊 Example Summary Table (based on your plots): Class Residual Shape Pattern Max Drift (approx.) Polynomial Suggestion 1 Slight upward trend, mild curve \~0.3 Linear or quadratic 2 Mild U-shape \~0.3–0.4 Quadratic 3 Sine-like oscillation \~0.4–0.5 Cubic or spline 4 U-shape + slight drift \~0.4 Quadratic or cubic 5 Slight wave \~0.3 Cubic 6 Mild upward then downward \~0.3–0.4 Cubic 7 Flat-ish \~0.2 Linear might suffice
+
+```{r}
+
+
+residual_structure_drift_df <- data.frame(
+  Class = c("Class 1", "Class 2", "Class 3", "Class 4", "Class 5", "Class 6", "Class 7"),
+  Residual_Shape_Pattern = c(
+    "Slight upward trend, mild curve",
+    "Mild U-shape",
+    "Sine-like oscillation",
+    "U-shape + slight drift",
+    "Slight wave",
+    "Mild upward then downward",
+    "Flat-ish"
+  ),
+  Max_Drift_Approx = c("~0.3", "~0.3–0.4", "~0.4–0.5", "~0.4", "~0.3", "~0.3–0.4", "~0.2"),
+  Polynomial_Suggestion = c(
+    "Linear or quadratic",
+    "Quadratic",
+    "Cubic or spline",
+    "Quadratic or cubic",
+    "Cubic",
+    "Cubic",
+    "Linear might suffice"
+  ),
+  stringsAsFactors = FALSE
+)
+
+
+```
+
+Class Residual pattern Suggested structure Class 1 Slight downward curve early on, then flattens Mild quadratic trend Class 2 Slight upward drift, flattens in middle, then up again Quadratic (or light cubic) Class 3 Mild S-shape, mostly constant Possibly cubic (but marginal) Class 4 Linear central trend with small tail deviation Linear or mild quadratic Class 5 Light wave (S-pattern), more visible curvature Cubic trend likely helpful Class 6 Systematic wave (rise–dip–rise) even if small Cubic or higher polynomial suggested Class 7 Relatively flat, minor wiggle Possibly linear–quadratic hybrid (but low concern)
