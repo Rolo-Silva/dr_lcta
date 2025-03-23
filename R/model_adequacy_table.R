@@ -180,6 +180,34 @@ create_model_adequacy_table <- function(summary_table, all_named_models) {
 }
 
 
+
+
+add_DoSK_and_normalized <- function(model_list, model_adequacy_table) {
+  # Calcular DoSK
+  DoSK_df <- lapply(names(model_list), function(model_name) {
+    model <- model_list[[model_name]]
+    coeff_df <- extract_coeffs_by_class(model)
+    DoSK_value <- calculate_DoSK_from_coefficients(coeff_df)
+    data.frame(Model = model_name, DoSK = round(DoSK_value, 4))
+  }) %>% do.call(rbind, .)
+  
+  # Unión
+  model_adequacy_table <- model_adequacy_table %>%
+    left_join(DoSK_df, by = "Model")
+  
+  # Normalización
+  range_DoSK <- range(model_adequacy_table$DoSK, na.rm = TRUE)
+  model_adequacy_table <- model_adequacy_table %>%
+    mutate(DoSK_normalized = if (diff(range_DoSK) > 0) {
+      (DoSK - range_DoSK[1]) / diff(range_DoSK)
+    } else {
+      NA_real_
+    })
+  
+  return(model_adequacy_table)
+}
+
+
 # Paso 1: crear modelos renombrados
 all_named_models <- create_named_models_by_period(all_models_by_period)
 
@@ -189,7 +217,68 @@ summary_table <- build_summary_table(names(all_named_models), all_named_models)
 # Paso 3: tabla de adecuación final
 model_adequacy_table <- create_model_adequacy_table(summary_table, all_named_models)
 
+model_adequacy_table <- add_DoSK_and_normalized(all_named_models, model_adequacy_table)
+
+
 View(model_adequacy_table)
+
+#Step 1
+model_adequacy_table %>% 
+  filter(str_detect(Model, pattern = "class_linear_nre_homocedastic_drsc_model_2011_2023")) %>% 
+  mutate(VLMRLRT_P_Value = sprintf("%.7f", as.numeric(VLMRLRT_P_Value))) %>% 
+  arrange(BIC)
+
+
+#Step 2
+model_adequacy_table %>% 
+  filter(str_detect(Model, pattern = "class_linear_nre_homocedastic_drsc_model_2011_2023")) %>% 
+  mutate(VLMRLRT_P_Value = sprintf("%.7f", as.numeric(VLMRLRT_P_Value))) %>% 
+  arrange(BIC) %>% 
+  head(1)
+
+#Step 3
+model_adequacy_table %>% 
+  filter(str_detect(Model, "3class") & str_detect(Model, "drsc_model_2011_2023")) %>% 
+  arrange(BIC)
+
+#Step 4
+model_adequacy_table %>% 
+  filter(str_detect(Model, "4class") & str_detect(Model, "drsc_model_2011_2023")) %>% 
+  arrange(BIC) %>% 
+  filter(Lowest_APPA > 0.70,
+         Lowest_OCC> 5,
+         entropy > 0.5,
+         Smallest_Class_Size_Percentage > 5) 
+
+
+
+
+
+model_adequacy_table %>% 
+  filter(str_detect(Model, "drsc_model_2011_2023")) %>% 
+  mutate(VLMRLRT_P_Value = sprintf("%.7f", as.numeric(VLMRLRT_P_Value))) %>% 
+  arrange(BIC, -Lowest_APPA, -Lowest_OCC, -entropy) %>% 
+  filter(Lowest_APPA > 0.70,
+         Lowest_OCC> 5,
+         entropy > 0.6,
+         Smallest_Class_Size_Percentage > 5) %>% 
+  arrange(BIC)
+
+
+
+
+
+#Summary all steps
+model_adequacy_table %>% 
+  filter(!str_detect(Model, "nre") & str_detect(Model, "drsc_model_2011_2023")) %>% 
+  mutate(VLMRLRT_P_Value = sprintf("%.7f", as.numeric(VLMRLRT_P_Value))) %>% 
+  arrange(BIC, -Lowest_APPA, -entropy) %>% 
+  filter(Lowest_APPA > 0.70,
+         Lowest_OCC> 5,
+         entropy > 0.6,
+         Smallest_Class_Size_Percentage > 5) %>% 
+  arrange(BIC)
+
 
 
 
