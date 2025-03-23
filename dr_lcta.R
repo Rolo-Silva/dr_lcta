@@ -1,6 +1,7 @@
 # Load libraries
 
-devtools::install_github("hlennon/LCTMtools", force=TRUE)
+install.packages("devtools")
+devtools::install_github("hlennon/LCTMtools")
 library(LCTMtools)
 libraries <- c(
   "tidyverse", "knitr", "kableExtra", "ggplot2", "ggtext", 
@@ -575,6 +576,16 @@ m3drs_noq1 <- lcmm::hlme(drs_coverage ~ ano2, mixture = ~ano2, random = ~ano2, s
 m4drs_noq1 <- lcmm::hlme(drs_coverage ~ ano2, mixture = ~ano2, random = ~ano2, subject='comuna2', ng = 4, data = coverage_2011_2023_noq1, B=m1drs_noq1)
 m5drs_noq1 <- lcmm::hlme(drs_coverage ~ ano2, mixture = ~ano2, random = ~ano2, subject='comuna2', ng = 5, data = coverage_2011_2023_noq1, B=m1drs_noq1)
 m6drs_noq1 <- lcmm::hlme(drs_coverage ~ ano2, mixture = ~ano2, random = ~ano2, subject='comuna2', ng = 6, data = coverage_2011_2023_noq1, B=m1drs_noq1)
+
+
+m1drs_noq1 <- lcmm::hlme(drs_coverage ~ ano2, random = ~ano2, subject = "comuna2", ng = 1, data = coverage_2011_2023_noq1)
+m2drs_noq1 <- lcmm::hlme(drs_coverage ~ ano2, mixture = ~ano2, random = ~ano2, subject='comuna2', ng = 2, data = coverage_2011_2023_noq1, B=m1drs_noq1)
+m3drs_noq1 <- lcmm::hlme(drs_coverage ~ ano2, mixture = ~ano2, random = ~ano2, subject='comuna2', ng = 3, data = coverage_2011_2023_noq1, B=m1drs_noq1)
+##m3drs <- gridsearch(rep = 100, maxiter = 10, minit = m1drs, m= hlme(drs_coverage2 ~ ano2, mixture = ~ano2, random = ~ano2, subject='comuna2', ng = 3, data = coverage2, B=m1drs))
+m4drs_noq1 <- lcmm::hlme(drs_coverage ~ ano2, mixture = ~ano2, random = ~ano2, subject='comuna2', ng = 4, data = coverage_2011_2023_noq1, B=m1drs_noq1)
+m5drs_noq1 <- lcmm::hlme(drs_coverage ~ ano2, mixture = ~ano2, random = ~ano2, subject='comuna2', ng = 5, data = coverage_2011_2023_noq1, B=m1drs_noq1)
+m6drs_noq1 <- lcmm::hlme(drs_coverage ~ ano2, mixture = ~ano2, random = ~ano2, subject='comuna2', ng = 6, data = coverage_2011_2023_noq1, B=m1drs_noq1)
+
 
 # For c1
 # Extract values for c1
@@ -3042,8 +3053,7 @@ coverage_2011_2023_noq1 %>%
   select(comuna2, ano2, drs_coverage)
 
 
-m1drs_noq1 <- lcmm::hlme(drs_coverage ~ ano2, random = ~ano2, subject = "comuna2", ng = 1, data = coverage_2011_2023_noq1)
-m2drs_noq1 <- lcmm::hlme(drs_coverage ~ ano2, mixture = ~ano2, random = ~ano2, subject='comuna2', ng = 2, data = coverage_2011_2023_noq1, B=m1drs_noq1)
+
 
 base <- lcmm::gridsearch(rep = 20, maxiter=1000, minit=1,
                           m= hlme (fixed = drs_coverage~1+ano2+ano2^2,

@@ -268,7 +268,9 @@ We assessed model discrimination using degrees of separation (DoSK) and Elsensoh
 
 We extended Elsenhohn et al.'s method used in fixed effects to random effects models. We calculated residuals for each participant and class-specific, time-specific weighted variances using posterior probabilities. We then plotted the upper and lower boundaries of the residuals' local SDs for each class. Non-parallel boundaries indicated heteroscedasticity, suggesting poor model fit, while varying interval widths pointed to unaccounted class variability. This method helped identify potential model issues, guiding necessary refinements for better fit.
 
-Sensitivity analyses were conducted by replicating the modelling on subsets of the population with at least three time-point observations to test classification robustness. After this step, we will assess the interpretability of the favoured model.
+After identifying the optimal model structure, we proceeded with assigning descriptive labels to the latent trajectory classes. Each class was categorized based on observed coverage patterns. This process involved reviewing class-specific characteristics to ensure that each label was meaningful and aligned with plausible real-world patterns. These labels provided a framework for understanding the different patterns of diabetes coverage provision, guiding further interpretation and analysis. Following this, we assessed the robustness of the model by conducting sensitivity analyses.
+
+The sensitivity analyses were carried out by replicating the modeling on subsets of the population with at least three time-point observations to test the stability of the classifications. After this step, we will assess the interpretability of the favored model.
 
 In the second stage, we examined whether municipality-level characteristics (deprivation, urbanicity, and geographical location) predicted class membership using lineal regression model. The ISED score was standardized to meet distributional assumptions, and both unadjusted and adjusted models were fitted to evaluate the strength and consistency of these associations.
 
@@ -726,7 +728,7 @@ ggplot(dr1, aes(x=ano2, y=drs_coverage, colour = as.factor(class), group = comun
         panel.background = element_blank())+
   scale_color_lancet()
   
-
+dm1
 ```
 
 ```{r}
