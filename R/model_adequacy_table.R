@@ -179,33 +179,63 @@ create_model_adequacy_table <- function(summary_table, all_named_models) {
   return(model_adequacy_table)
 }
 
+# Mahalanobis Degrees of Separation function
+calculate_Mahalanobis_DoS <- function(coeff_df, cov_matrix = NULL, use_identity_if_missing = TRUE) {
+  ng <- nrow(coeff_df)
+  if (ng <= 1 || any(is.na(coeff_df$intercept)) || any(is.na(coeff_df$slope))) return(NA_real_)
+  
+  coef_mat <- as.matrix(coeff_df[, c("intercept", "slope")])
+  
+  if (is.null(cov_matrix)) {
+    if (use_identity_if_missing) {
+      cov_matrix <- diag(ncol(coef_mat))
+    } else {
+      cov_matrix <- cov(coef_mat)
+    }
+  }
+  
+  inv_cov <- tryCatch(solve(cov_matrix), error = function(e) NULL)
+  if (is.null(inv_cov)) return(NA_real_)
+  
+  distances <- c()
+  for (i in 1:(ng - 1)) {
+    for (j in (i + 1):ng) {
+      diff_vec <- coef_mat[i, ] - coef_mat[j, ]
+      d <- t(diff_vec) %*% inv_cov %*% diff_vec
+      distances <- c(distances, sqrt(as.numeric(d)))
+    }
+  }
+  
+  return(mean(distances, na.rm = TRUE))
+}
 
 
 
-add_DoSK_and_normalized <- function(model_list, model_adequacy_table) {
-  # Calcular DoSK
-  DoSK_df <- lapply(names(model_list), function(model_name) {
+# New function: add Mahalanobis Degrees of Separation to model table
+add_Mahalanobis_DoS_to_model_table <- function(model_list, model_adequacy_table) {
+  DoS_df <- lapply(names(model_list), function(model_name) {
     model <- model_list[[model_name]]
     coeff_df <- extract_coeffs_by_class(model)
-    DoSK_value <- calculate_DoSK_from_coefficients(coeff_df)
-    data.frame(Model = model_name, DoSK = round(DoSK_value, 4))
+    DoS_value <- calculate_Mahalanobis_DoS(coeff_df)
+    data.frame(Model = model_name, DoS_Mahalanobis = round(DoS_value, 4))
   }) %>% do.call(rbind, .)
   
-  # Unión
   model_adequacy_table <- model_adequacy_table %>%
-    left_join(DoSK_df, by = "Model")
-  
-  # Normalización
-  range_DoSK <- range(model_adequacy_table$DoSK, na.rm = TRUE)
-  model_adequacy_table <- model_adequacy_table %>%
-    mutate(DoSK_normalized = if (diff(range_DoSK) > 0) {
-      (DoSK - range_DoSK[1]) / diff(range_DoSK)
-    } else {
-      NA_real_
-    })
+    left_join(DoS_df, by = "Model")
   
   return(model_adequacy_table)
 }
+
+range_DoS <- range(model_adequacy_table$DoS_Mahalanobis, na.rm = TRUE)
+
+if (diff(range_DoS) > 0) {
+  model_adequacy_table <- model_adequacy_table %>%
+    mutate(DoS_Mahalanobis_Normalized = (DoS_Mahalanobis - range_DoS[1]) / diff(range_DoS))
+} else {
+  model_adequacy_table <- model_adequacy_table %>%
+    mutate(DoS_Mahalanobis_Normalized = NA_real_)
+}
+
 
 
 # Paso 1: crear modelos renombrados
@@ -217,14 +247,16 @@ summary_table <- build_summary_table(names(all_named_models), all_named_models)
 # Paso 3: tabla de adecuación final
 model_adequacy_table <- create_model_adequacy_table(summary_table, all_named_models)
 
-model_adequacy_table <- add_DoSK_and_normalized(all_named_models, model_adequacy_table)
+model_adequacy_table <- add_Mahalanobis_DoS_to_model_table(all_named_models, model_adequacy_table)
 
+write.csv(model_adequacy_table, "model_adequacy_table.csv")
 
 View(model_adequacy_table)
 
+
 #Step 1
 model_adequacy_table %>% 
-  filter(str_detect(Model, pattern = "class_linear_nre_homocedastic_drsc_model_2011_2023")) %>% 
+  filter(str_detect(Model, pattern = "class_linear_nre_homocedastic_dgcc_model_2011_2023")) %>% 
   mutate(VLMRLRT_P_Value = sprintf("%.7f", as.numeric(VLMRLRT_P_Value))) %>% 
   arrange(BIC)
 
@@ -238,33 +270,39 @@ model_adequacy_table %>%
 
 #Step 3
 model_adequacy_table %>% 
-  filter(str_detect(Model, "3class") & str_detect(Model, "drsc_model_2011_2023")) %>% 
-  arrange(BIC)
+  filter(str_detect(Model, "7class") & str_detect(Model, "dgcc_model_2011_2023")) %>% 
+  mutate(VLMRLRT_P_Value = sprintf("%.7f", as.numeric(VLMRLRT_P_Value))) %>% 
+  arrange(BIC, -Lowest_APPA, -Lowest_OCC, -entropy, -DoS_Mahalanobis) 
 
-#Step 4
 model_adequacy_table %>% 
-  filter(str_detect(Model, "4class") & str_detect(Model, "drsc_model_2011_2023")) %>% 
-  arrange(BIC) %>% 
+  filter(str_detect(Model, pattern = "class_cubic_nre_dgcc_model_2011_2023")) %>% 
+  mutate(VLMRLRT_P_Value = sprintf("%.7f", as.numeric(VLMRLRT_P_Value))) %>% 
+  arrange(BIC, -Lowest_APPA, -Lowest_OCC, -entropy, -DoS_Mahalanobis) %>% 
+    filter(Lowest_APPA > 0.70,
+           Lowest_OCC> 5,
+           entropy > 0.5,
+           Smallest_Class_Size_Percentage > 2) 
+
+ 
+#Step 4
+  model_adequacy_table %>% 
+    filter(str_detect(Model, "7class") & str_detect(Model, "dgcc_model_2011_2023")) %>% 
+    mutate(VLMRLRT_P_Value = sprintf("%.7f", as.numeric(VLMRLRT_P_Value))) %>% 
+    arrange(BIC, -Lowest_APPA, -Lowest_OCC, -entropy, -DoS_Mahalanobis) %>% 
   filter(Lowest_APPA > 0.70,
          Lowest_OCC> 5,
          entropy > 0.5,
-         Smallest_Class_Size_Percentage > 5) 
-
-
-
+         Smallest_Class_Size_Percentage > 2) 
 
 
 model_adequacy_table %>% 
   filter(str_detect(Model, "drsc_model_2011_2023")) %>% 
   mutate(VLMRLRT_P_Value = sprintf("%.7f", as.numeric(VLMRLRT_P_Value))) %>% 
-  arrange(BIC, -Lowest_APPA, -Lowest_OCC, -entropy) %>% 
+  arrange(BIC, -Lowest_APPA, -Lowest_OCC, -entropy, -DoS_Mahalanobis) %>% 
   filter(Lowest_APPA > 0.70,
          Lowest_OCC> 5,
-         entropy > 0.6,
-         Smallest_Class_Size_Percentage > 5) %>% 
-  arrange(BIC)
-
-
+         entropy > 0.5,
+         Smallest_Class_Size_Percentage > 2)
 
 
 
@@ -283,4 +321,90 @@ model_adequacy_table %>%
 
 
 
-               
+
+
+
+
+
+
+
+
+
+
+
+# STEP 0: Define your model
+# Replace this line with the exact name of your model from all_named_models
+model <- all_named_models[["4class_cubic_random_effects_drsc_model_2011_2023"]]
+model_data <- model$call$data
+pred_df <- model$pred
+merged_df <- model_data %>%
+  filter(!is.na(drs_coverage)) %>%
+  bind_cols(pred_df)
+
+merged_df <- merged_df %>% 
+  rename(id = id...16) %>% 
+  select(-id...19)
+
+all.equal(merged_df$obs, merged_df$drs_coverage)
+
+library(dplyr)
+library(ggplot2)
+
+compute_pred_with_resid_envelope <- function(df, pred_col = "pred_ss", resid_col = "resid_ss", weight_col, time_col = "year") {
+  df %>%
+    group_by(!!sym(time_col)) %>%
+    summarise(
+      # Weighted mean of predicted values (pred_ss)
+      wmean_pred = sum(!!sym(weight_col) * !!sym(pred_col), na.rm = TRUE) / sum(!!sym(weight_col), na.rm = TRUE),
+      
+      # Weighted mean of residuals (resid_ss) – needed for correct variance
+      wmean_resid = sum(!!sym(weight_col) * !!sym(resid_col), na.rm = TRUE) / sum(!!sym(weight_col), na.rm = TRUE),
+      
+      # Weighted variance and SD of residuals (corrected)
+      wvar_resid = sum(!!sym(weight_col) * (!!sym(resid_col) - wmean_resid)^2, na.rm = TRUE) / sum(!!sym(weight_col), na.rm = TRUE),
+      wsd_resid = sqrt(wvar_resid),
+      
+      # Construct the envelope
+      upper = wmean_pred + wsd_resid,
+      lower = wmean_pred - wsd_resid
+    ) %>%
+    mutate(class = weight_col)
+}
+
+
+resid_envelope_plotdata <- lapply(1:4, function(i) {
+  compute_pred_with_resid_envelope(
+    df = merged_df,
+    pred_col = paste0("pred_ss", i),
+    resid_col = "resid_ss",
+    weight_col = paste0("pred_ss", i)
+  ) %>%
+    mutate(class = paste("Class", i))  # <- tag class here inside the loop
+}) %>%
+  bind_rows()
+
+
+
+
+ggplot(resid_envelope_plotdata, aes(x = year)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = class), alpha = 0.25) +
+  geom_line(aes(y = wmean_pred, color = class), size = 1.2) +
+  labs(
+    title = "Predicted coverage with residual-based SD envelope per class",
+    subtitle = "Y-axis: predicted drs_coverage; Envelope: weighted SD of residuals",
+    caption = "Note: Each ribbon represents ±1 weighted standard deviation (SD) of the subject-specific residuals around the class-specific predicted coverage. Although the visual envelope may appear broad, this corresponds to actual SD values between 0.12 and 0.15, resulting in typical envelope widths between 0.24 and 0.30.",
+    x = "Year", y = "Predicted drs_coverage",
+    fill = "Class", color = "Class"
+  ) +
+  theme_minimal(base_size = 14)+ 
+  #geom_point(data = merged_df, aes(x = year, y = drs_coverage), color = "black", alpha = 0.2, inherit.aes = FALSE)+
+  facet_wrap(~ class, scales = "free_y") 
+
+
+
+
+resid_envelope_plotdata %>%
+  select(class, year, wmean_pred, wsd_resid, lower, upper) %>%
+  arrange(class, year) %>%
+  print(n = 52) 
+

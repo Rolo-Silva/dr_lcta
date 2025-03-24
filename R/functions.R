@@ -2,12 +2,256 @@
 install.packages(c("lcmm", "dplyr", "future", "future.apply"))
 
 # Load required libraries
+library(tidyverse) #dplyr, tibble, ggplot2, readr, tidyr, stringr, forcats, lubridate, purr
+library(knitr)
+library(kableExtra)
+library(ggtext)
+library(Cairo)
+library(extrafont)
+library(hrbrthemes)
+library(directlabels)
+library(ggrepel)
+library(readxl)
+library(extrafont)
+library(scales)
+library(ggsci)
 library(lcmm)
-library(dplyr)
+library(MixAll)
+require(kml)
+require(traj)
+require(lmerTest)
+require(plyr)
+require(psych)
+require(fpc)
+require(mclust)
+require(rcompanion)
+library(gridExtra)
+library(tidyLPA)
+library(MASS)
+library(broom)
+library(skimr)
+library(gtExtras)
+library(pander)
+library(BayesFactor)
+library(modelsummary)
+library(gt)
+library(gtsummary)
+library(survival)
+library(xtable)
+library(skimr)
+library(htmltools)
 library(future)
 library(future.apply)
 
-start_time <- Sys.time()
+## All series --------------------------------------------------------------
+
+
+coverage_2011_2023 <- read.csv("all_series_diabetes.csv", sep=",")
+
+coverage_2011_2023 <- coverage_2011_2023 %>% 
+  mutate(zona = ifelse(region %in% c("De Arica y Parinacota", "De Tarapacá", "De Antofagasta", "De Atacama", "De Coquimbo"), 1, 
+                       ifelse(region %in% c("De Valparaíso", "Metropolitana de Santiago", "Del Libertador B. O'Higgins", "Del Maule"), 2, 3)))
+
+
+## coverage ---------------------------------------------------------------
+
+coverage_2011_2023 <- coverage_2011_2023 %>% 
+  filter(codigo_prestacion %in% c("P4150602","P4190950","P4190400", "P4180300")) %>% 
+  dplyr::group_by(ano, comuna, id_servicio, id_region, zona, codigo_prestacion) %>% 
+  dplyr::summarise(cantidad = round(sum(col01))) %>% 
+  tidyr::spread(codigo_prestacion, cantidad) %>% 
+  dplyr::rename(dm = P4150602,
+                dm_fo = P4190950,
+                dm_fo_2 =P4190400,
+                dm_hg_menor7 = P4180300) %>% 
+  dplyr::mutate(dm_fo= coalesce(dm_fo, dm_fo_2)) %>% 
+  dplyr::select(-dm_fo_2) %>% 
+  dplyr::mutate(drs_coverage = dm_fo/dm,
+                dm_coverage = dm_hg_menor7/dm)
+
+
+
+# fix duplicated comunas and unify in one only ------------------------------------------------
+
+
+pac <- coverage_2011_2023 %>% 
+  ungroup() %>% 
+  filter(str_detect(comuna, "Cerda")) %>% 
+  select(-id_region, -id_servicio, -drs_coverage, -dm_coverage) %>% 
+  group_by(ano, comuna) %>%
+  summarise_all(~ if(is.numeric(.)) sum(., na.rm = TRUE) else first(.)) %>% 
+  mutate(drs_coverage = dm_fo/dm,
+         dm_coverage = dm_hg_menor7/dm,
+         id_servicio = 13,
+         id_region =13) %>% 
+  select(ano,comuna,id_servicio,id_region,dm,dm_hg_menor7,dm_fo,drs_coverage, dm_coverage )
+
+
+santiago <- coverage_2011_2023 %>% 
+  ungroup() %>% 
+  filter(comuna== "Santiago") %>% 
+  select(-id_region, -id_servicio, -drs_coverage, -dm_coverage) %>% 
+  group_by(ano, comuna) %>%
+  summarise_all(~ if(is.numeric(.)) sum(., na.rm = TRUE) else first(.)) %>%
+  mutate(drs_coverage = dm_fo/dm,
+         dm_coverage = dm_hg_menor7/dm,
+         id_servicio = 11,
+         id_region =13) %>% 
+  select(ano,comuna,id_servicio,id_region,dm,dm_hg_menor7,dm_fo,drs_coverage, dm_coverage )
+
+la_granja <- coverage_2011_2023 %>% 
+  ungroup() %>% 
+  filter(comuna== "La Granja") %>% 
+  select(-id_region, -id_servicio, -drs_coverage, -dm_coverage) %>% 
+  group_by(ano, comuna) %>%
+  summarise_all(~ if(is.numeric(.)) sum(., na.rm = TRUE) else first(.)) %>% 
+  mutate(drs_coverage = dm_fo/dm,
+         dm_coverage = dm_hg_menor7/dm,
+         id_servicio = 14,
+         id_region =13)%>% 
+  select(ano,comuna,id_servicio,id_region,dm,dm_hg_menor7,dm_fo,drs_coverage, dm_coverage )
+
+
+# Remove duplicated comunes -----------------------------------------------
+
+
+coverage_2011_2023 <- coverage_2011_2023 %>% 
+  filter(!comuna %in% c("Santiago", "La Granja"),  
+         !str_detect(comuna, "Cerda")) 
+
+#Bind fixed comunes with the main dataset
+
+coverage_2011_2023 <- bind_rows(coverage_2011_2023, pac, santiago, la_granja)
+
+
+
+coverage_2011_2023 %>% 
+  filter(grepl("La Granja", comuna))
+
+
+
+coverage_2011_2023 <- coverage_2011_2023 %>% 
+  mutate(zona = ifelse(id_region %in% 13, 2, zona)) 
+
+
+
+
+#Categorise dm quintiles -------------------------------------------------
+
+coverage_2011_2023_noq1 <- coverage_2011_2023 %>%
+  ungroup() %>% 
+  mutate(quintil_dm_category = cut(dm,
+                                   breaks = quantile(dm, probs = c(0, 0.2, 0.4, 0.6, 0.8, 1), na.rm = TRUE),
+                                   labels = c("Q1", "Q2", "Q3", "Q4", "Q5"),
+                                   include.lowest = TRUE))
+
+
+coverage_2011_2023 %>%
+  ungroup() %>% 
+  mutate(quintil_dm_category = cut(dm,
+                                   breaks = quantile(dm, probs = c(0, 0.2, 0.4, 0.6, 0.8, 1), na.rm = TRUE),
+                                   labels = c("Q1", "Q2", "Q3", "Q4", "Q5"),
+                                   include.lowest = TRUE)) %>% 
+  dplyr::filter(quintil_dm_category!= "Q1") %>%
+  dplyr::mutate(comuna2 = as.integer(factor(comuna, levels = unique(comuna)))) %>% 
+  dplyr::mutate(ano2 = ano - 2011) %>% 
+  arrange(-drs_coverage) %>% 
+  mutate(drs_coverage=replace(drs_coverage, drs_coverage>1, 1)) %>% 
+  arrange(ano, comuna) 
+
+
+
+## Delete Q1 category ------------------------------------------------------
+
+coverage_2011_2023_noq1 <- coverage_2011_2023_noq1 %>% 
+  dplyr::filter(quintil_dm_category!= "Q1")
+
+# Add a simple indentifier to comuna --------------------------------------
+
+coverage_2011_2023_noq1$comuna2 <- match(coverage_2011_2023_noq1$comuna, unique(coverage_2011_2023_noq1$comuna))  ##creating a new comuna variable as a numeric variable (comuna2)
+
+coverage_2011_2023_noq1 <- coverage_2011_2023_noq1 %>% 
+  dplyr::mutate(ano2 = ano - 2011)
+
+coverage_2011_2023_noq1 <- coverage_2011_2023_noq1 %>% 
+  arrange(-drs_coverage) %>% 
+  mutate(drs_coverage=replace(drs_coverage, drs_coverage>1, 1)) %>% 
+  arrange(ano, comuna)
+
+
+isde <- read_excel("SocioEconominoSaludComunas.xlsx")
+
+isde <- isde[,c(2,4)]
+
+isde <- isde %>% 
+  dplyr::mutate(comuna = ...2,
+                index_standardized = scale(index)) %>% 
+  dplyr::select(comuna, index, index_standardized) %>% 
+  arrange(comuna)
+
+
+coverage_isde <- coverage_2011_2023_noq1 %>% 
+  mutate(ano2=match(ano, unique(ano)),
+         id_region = ifelse(id_region==16, 8, id_region), #Tratar a Ñuble como si hubiera siempre pertencido a una misma region  
+         id_region2 = match(id_region, unique(id_region)),
+         zona = factor(zona),
+         id_servicio2 = match(id_servicio, unique(id_servicio))) %>% 
+  dplyr::group_by(comuna, comuna2,id_servicio, id_region, zona) %>% 
+  dplyr::summarise(ano=ano,
+                  ano2=ano2,
+                  dm=dm,
+                   dm_hg_menor7=dm_hg_menor7,
+                   dm_fo=dm_fo,
+                   mean_drs_coverage = mean(drs_coverage, na.rm=T),
+                   mean_dm_coverage = mean(dm_coverage, na.rm=T)) %>% 
+  distinct(comuna, .keep_all = TRUE) %>% 
+  mutate(comuna2 = cur_group_id()) 
+
+coverage_isde[!(coverage_isde$comuna %in% isde$comuna), ] 
+
+isde$comuna[isde$comuna == "Aisen"] <- "Aisén"
+isde$comuna[isde$comuna =="Padre las Casas"] <- "Padre Las Casas"
+coverage_isde$comuna[174] = isde$comuna[192] ## esto arregla PAC
+isde$comuna[isde$comuna =="San Juan de La Costa"] <- "San Juan de la Costa" 
+
+
+coverage_isde[!(coverage_isde$comuna %in% isde$comuna), ] 
+
+coverage_2011_2023_noq1 <- right_join(coverage_isde, isde) 
+
+coverage_2011_2023_noq1 <- coverage_2011_2023_noq1 %>% 
+mutate(zona = ifelse(zona == 1, 'norte', 
+                     ifelse(zona == 2, 'centro', 'sur')))
+
+rurality <- read_excel("Clasificacion-comunas-PNDR.xlsx")
+rurality <- janitor::clean_names(rurality) %>% 
+  select(comuna, tipo_com, clasificacion) %>% 
+  mutate(urbanisation_level = tipo_com,
+         comuna = str_to_title(comuna),
+         urbanisation_classification= clasificacion) %>% 
+  select(-tipo_com)
+
+rurality$comuna <- gsub("\\bDe\\b", "de", rurality$comuna, ignore.case = TRUE)
+rurality$comuna <- gsub("\\bDel\\b", "del", rurality$comuna, ignore.case = TRUE)
+rurality$comuna <- gsub("\\b La\\b", " la", rurality$comuna, ignore.case = TRUE)
+rurality$comuna[rurality$comuna == "Aysén"] <- "Aisén"
+rurality$comuna[rurality$comuna == "Coyhaique"] <- "Coihaique"
+rurality$comuna[rurality$comuna == "Alto Biobío"] <- "Alto Bío-Bío"
+
+rurality[!(rurality$comuna %in% coverage_2011_2023_noq1$comuna), ] 
+
+coverage_2011_2023_noq1[!(coverage_2011_2023_noq1$comuna %in% rurality$comuna), ] 
+
+coverage_2011_2023_noq1 <- right_join(coverage_2011_2023_noq1, rurality)
+
+coverage_2011_2023_noq1 <- coverage_2011_2023_noq1 %>% drop_na(mean_drs_coverage, mean_dm_coverage)
+
+
+## Save coverage.csv -------------------------------------------------------
+
+
+write.csv(coverage_2011_2023_noq1, "coverage_2011_2023_noq1.csv")
+
 
 # Read the CSV file and clean the data
 coverage <- read.csv("coverage_2011_2023_noq1.csv") %>%
