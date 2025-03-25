@@ -155,6 +155,8 @@ coverage_2011_2023_noq1 <- coverage_2011_2023_noq1 %>%
   mutate(drs_coverage=replace(drs_coverage, drs_coverage>1, 1)) %>% 
   arrange(ano, comuna)
 
+coverage_2011_2023_noq1 <- coverage_2011_2023_noq1 %>% 
+drop_na(mean_drs_coverage, mean_dm_coverage )
 
 ## Save coverage.csv -------------------------------------------------------
 
