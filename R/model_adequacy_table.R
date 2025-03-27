@@ -179,6 +179,9 @@ create_model_adequacy_table <- function(summary_table, all_named_models) {
   return(model_adequacy_table)
 }
 
+
+create_model_adequacy_table(summary_table, all_named_models)
+
 # Mahalanobis Degrees of Separation function
 calculate_Mahalanobis_DoS <- function(coeff_df, cov_matrix = NULL, use_identity_if_missing = TRUE) {
   ng <- nrow(coeff_df)
@@ -258,15 +261,9 @@ View(model_adequacy_table)
 model_adequacy_table %>% 
   filter(str_detect(Model, pattern = "class_linear_nre_homocedastic_dgcc_model_2011_2023")) %>% 
   mutate(VLMRLRT_P_Value = sprintf("%.7f", as.numeric(VLMRLRT_P_Value))) %>% 
-  arrange(BIC)
-
-
-#Step 2
-model_adequacy_table %>% 
-  filter(str_detect(Model, pattern = "class_linear_nre_homocedastic_drsc_model_2011_2023")) %>% 
-  mutate(VLMRLRT_P_Value = sprintf("%.7f", as.numeric(VLMRLRT_P_Value))) %>% 
   arrange(BIC) %>% 
-  head(1)
+  slice(1:3)
+
 
 #Step 3
 model_adequacy_table %>% 
@@ -274,16 +271,23 @@ model_adequacy_table %>%
   mutate(VLMRLRT_P_Value = sprintf("%.7f", as.numeric(VLMRLRT_P_Value))) %>% 
   arrange(BIC, -Lowest_APPA, -Lowest_OCC, -entropy, -DoS_Mahalanobis) 
 
+
 model_adequacy_table %>% 
-  filter(str_detect(Model, pattern = "class_cubic_nre_dgcc_model_2011_2023")) %>% 
+  filter(str_detect(Model, pattern = "dgcc_model_2011_2019")) %>% 
   mutate(VLMRLRT_P_Value = sprintf("%.7f", as.numeric(VLMRLRT_P_Value))) %>% 
   arrange(BIC, -Lowest_APPA, -Lowest_OCC, -entropy, -DoS_Mahalanobis) %>% 
     filter(Lowest_APPA > 0.70,
            Lowest_OCC> 5,
-           entropy > 0.5,
-           Smallest_Class_Size_Percentage > 2) 
+           entropy > 0.6,
+           Smallest_Class_Size_Percentage > 2) %>% 
+  slice(1:2) %>% 
+  arrange(Model)
 
- 
+model_adequacy_table %>% 
+  filter(str_detect(Model, pattern = "class_cubic_nre_dgcc_model_2011_2023")) %>% 
+  mutate(VLMRLRT_P_Value = sprintf("%.7f", as.numeric(VLMRLRT_P_Value))) %>% 
+  arrange(Model)
+
 #Step 4
   model_adequacy_table %>% 
     filter(str_detect(Model, "7class") & str_detect(Model, "dgcc_model_2011_2023")) %>% 
@@ -295,27 +299,46 @@ model_adequacy_table %>%
          Smallest_Class_Size_Percentage > 2) 
 
 
+  
 model_adequacy_table %>% 
-  filter(str_detect(Model, "drsc_model_2011_2023")) %>% 
+  filter(str_detect(Model, "dgcc_model_2011_2023")|
+           str_detect(Model, "dgcc_model_2011_2019")|
+           str_detect(Model, "drsc_model_2011_2023")|
+           str_detect(Model, "drsc_model_2011_2019")) %>% 
   mutate(VLMRLRT_P_Value = sprintf("%.7f", as.numeric(VLMRLRT_P_Value))) %>% 
   arrange(BIC, -Lowest_APPA, -Lowest_OCC, -entropy, -DoS_Mahalanobis) %>% 
   filter(Lowest_APPA > 0.70,
          Lowest_OCC> 5,
-         entropy > 0.5,
-         Smallest_Class_Size_Percentage > 2)
-
-
-
-#Summary all steps
-model_adequacy_table %>% 
-  filter(!str_detect(Model, "nre") & str_detect(Model, "drsc_model_2011_2023")) %>% 
-  mutate(VLMRLRT_P_Value = sprintf("%.7f", as.numeric(VLMRLRT_P_Value))) %>% 
-  arrange(BIC, -Lowest_APPA, -entropy) %>% 
-  filter(Lowest_APPA > 0.70,
-         Lowest_OCC> 5,
          entropy > 0.6,
-         Smallest_Class_Size_Percentage > 5) %>% 
-  arrange(BIC)
+         Smallest_Class_Size_Percentage > 2) 
+
+
+
+model_adequacy_table %>%
+  filter(str_detect(Model, "dgcc_model_2011_2023|dgcc_model_2011_2019|drsc_model_2011_2023|drsc_model_2011_2019")) %>%
+  mutate(
+    group = str_extract(Model, "dgcc_model_2011_2023|dgcc_model_2011_2019|drsc_model_2011_2023|drsc_model_2011_2019"),
+    VLMRLRT_P_Value = sprintf("%.7f", as.numeric(VLMRLRT_P_Value))
+  ) %>%
+  filter(Lowest_APPA > 0.70,
+         Lowest_OCC > 5,
+         entropy > 0.6,
+         Smallest_Class_Size_Percentage > 2) %>%
+  arrange(BIC, -Lowest_APPA, -Lowest_OCC, -entropy, -DoS_Mahalanobis) %>%
+  group_by(group) %>%
+  slice_head(n = 2) %>%
+  ungroup() %>% data.frame()
+
+
+
+
+
+
+model_adequacy_table %>% 
+  filter(str_detect(Model, pattern = "class_cubic_nre_dgcc_model_2011_2023")) %>% 
+  mutate(VLMRLRT_P_Value = sprintf("%.7f", as.numeric(VLMRLRT_P_Value))) %>% 
+  arrange(Model) %>% 
+  select(Model, G, npm BIC,  )
 
 
 
@@ -324,13 +347,10 @@ model_adequacy_table %>%
 
 
 
-
-
-
-
-
-
-
+models <- c("4class_cubic_nre_dgcc_model_2011_2023", 
+            "2class_cubic_random_effects_dgcc_model_2011_2019",
+            "4class_cubic_nre_drsc_model_2011_2023",
+            "4class_quadratic_random_effects_prop_drsc_model_2011_2019")
 
 # STEP 0: Define your model
 # Replace this line with the exact name of your model from all_named_models
@@ -407,4 +427,129 @@ resid_envelope_plotdata %>%
   select(class, year, wmean_pred, wsd_resid, lower, upper) %>%
   arrange(class, year) %>%
   print(n = 52) 
+
+
+
+
+
+
+
+library(dplyr)
+library(ggplot2)
+library(tidyLPA)
+
+models_to_plot <- c("4class_cubic_nre_dgcc_model_2011_2023",
+                    "2class_cubic_random_effects_dgcc_model_2011_2019",
+                    "4class_cubic_nre_drsc_model_2011_2023",
+                    "4class_quadratic_random_effects_prop_drsc_model_2011_2019")
+
+plot_list <- list()
+
+for (model_name in models_to_plot) {
+  # STEP 0: Define your model
+  model <- all_named_models[[model_name]]
+  if (is.null(model)) {
+    message(paste("Model", model_name, "not found. Skipping."))
+    next
+  }
+  model_data <- model$call$data
+  pred_df <- model$pred
+  
+  # Assuming 'id' and the outcome variable names are consistent
+  outcome_var <- if (grepl("dgcc", model_name)) {
+    "dm_coverage" # Corrected outcome variable for DGCC
+  } else {
+    "drs_coverage"
+  }
+  print(paste("Outcome variable for", model_name, ":", outcome_var)) # Debug print
+  
+  print(paste("Columns in model_data for", model_name, ":")) # Debug print
+  print(names(model_data)) # Debug print
+  
+  merged_df <- model_data %>%
+    filter(!is.na(!!sym(outcome_var))) %>%
+    bind_cols(pred_df)
+  
+  # Select the 'year' and the outcome variable
+  merged_df <- merged_df %>%
+    select(year, !!sym(outcome_var), everything())
+  
+  # Identify the 'id' column. Prioritize one from model_data if present.
+  id_col_name_model_data <- names(model_data)[grepl("^id$", names(model_data))]
+  if (length(id_col_name_model_data) == 1) {
+    merged_df <- merged_df %>% dplyr::rename(id = !!sym(id_col_name_model_data))
+  } else {
+    id_col_name_merged <- names(merged_df)[grepl("^id", names(merged_df))]
+    if (length(id_col_name_merged) >= 1) {
+      merged_df <- merged_df %>% dplyr::rename(id = !!sym(id_col_name_merged[1]))
+      if (length(id_col_name_merged) > 1) {
+        warning(paste("Multiple 'id' columns found for", model_name, ". Using the first one:", id_col_name_merged[1]))
+      }
+    } else {
+      warning(paste("No 'id' column found for", model_name, ". Plotting might be incorrect."))
+    }
+  }
+  
+  # Select relevant columns, handling potential extra 'id' columns from bind_cols
+  pred_pattern <- "^pred_ss[0-9]+$"
+  all_pred_cols <- grep(pred_pattern, names(merged_df), value = TRUE)
+  resid_pattern <- "^resid_ss[0-9]+$"
+  all_resid_cols <- grep(resid_pattern, names(merged_df), value = TRUE)
+  
+  if (length(all_pred_cols) == 0) {
+    message(paste("No prediction columns found for", model_name, ". Skipping."))
+    next
+  }
+  
+  num_classes <- length(all_pred_cols)
+  
+  compute_pred_with_resid_envelope_dynamic <- function(df, pred_col, time_col = "year", outcome_col) {
+    df %>%
+      group_by(!!sym(time_col)) %>%
+      summarise(
+        wmean_pred = sum(!!sym(pred_col) * !!sym(pred_col), na.rm = TRUE) / sum(!!sym(pred_col), na.rm = TRUE),
+        wmean_resid = sum(!!sym(pred_col) * (!!sym(outcome_col) - !!sym(pred_col)), na.rm = TRUE) / sum(!!sym(pred_col), na.rm = TRUE),
+        wvar_resid = sum(!!sym(pred_col) * ((!!sym(outcome_col) - !!sym(pred_col)) - wmean_resid)^2, na.rm = TRUE) / sum(!!sym(pred_col), na.rm = TRUE),
+        wsd_resid = sqrt(wvar_resid),
+        upper = wmean_pred + wsd_resid,
+        lower = wmean_pred - wsd_resid
+      )
+  }
+  
+  resid_envelope_plotdata_list <- lapply(1:num_classes, function(i) {
+    pred_col_name <- paste0("pred_ss", i)
+    compute_pred_with_resid_envelope_dynamic(
+      df = merged_df,
+      pred_col = pred_col_name,
+      outcome_col = outcome_var
+    ) %>%
+      mutate(class = paste("Class", i))
+  }) %>%
+    bind_rows()
+  
+  title_prefix <- ifelse(grepl("dgcc", model_name), "DGCC", "DRSC")
+  period <- ifelse(grepl("2011_2023", model_name), "2011-2023", "2011-2019")
+  
+  plot <- ggplot(resid_envelope_plotdata_list, aes(x = year)) +
+    geom_ribbon(aes(ymin = lower, ymax = upper, fill = class), alpha = 0.25) +
+    geom_line(aes(y = wmean_pred, color = class), size = 1.2) +
+    labs(
+      title = paste(title_prefix, "Predicted Coverage with Residual-Based SD Envelope -", gsub("_", " ", gsub("model", "", gsub("dgcc", "", gsub("drsc", "", model_name)))), period),
+      subtitle = paste("Y-axis: predicted", outcome_var, "; Envelope: weighted SD of residuals"),
+      caption = "Note: Each ribbon represents ±1 weighted standard deviation (SD) of the subject-specific residuals around the class-specific predicted coverage.",
+      x = "Year", y = paste("Predicted", outcome_var),
+      fill = "Class", color = "Class"
+    ) +
+    theme_minimal(base_size = 12) +
+    facet_wrap(~ class, scales = "free_y")
+  
+  plot_list[[model_name]] <- plot
+}
+
+# You can now access the plots in the plot_list by their model name
+# For example: plot_list[["4class_cubic_nre_dgcc_model_2011_2023"]]
+plot_list
+
+
+
 
