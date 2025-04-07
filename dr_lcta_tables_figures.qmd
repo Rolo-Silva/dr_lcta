@@ -97,6 +97,7 @@ library(scales)
 library(ggsci)
 library(grid)
 library(gridExtra)
+library(gt)
 
 coverage_2011_2023_noq1 <- read.csv("coverage_2011_2023_noq1.csv")
 
@@ -428,34 +429,75 @@ To determine the optimal model structures for DGCC and DRSC, we tested models wi
 
 **Model adequacy assessment**
 
-**DGCC Models (2011–2023)**\
-The two-class cubic model showed the lowest BIC (–9198), followed by the three- and four-class cubic structures (–9137 and –9092, respectively). However, these models did not meet adequacy thresholds and were excluded from further consideration. After applying all predefined adequacy criteria, the four-class cubic model without random effects (BIC = –8771) emerged as the best-performing retained solution, followed by the three-class cubic model (BIC = –8664). Both models exhibited high classification quality and acceptable separation metrics.
+Across all four retained models—covering both outcomes and periods—a consistent four-class structure was identified as optimal. This convergence underscores shared adequacy in classification quality, relative entropy, and interpretability, even as model structures varied: while non-random effects structures were favored for both periods in DGCC, a proportional random effects structure was required to achieve adequacy for DRSC in 2011–2019. In all cases, BIC elbow plots (Supplementary Figures S3–S6) exhibited a clear inflection between three- and four-class solutions, further validating the choice. DGCC models displayed higher relative entropy (0.83–0.85) and OCC scores (8.1–11.7), alongside relatively balanced class sizes. DRSC models showed greater dispersion in entropy and separation metrics, with the 2011–2019 model having the lowest entropy (0.66) and OCC (5.5), though still above the minimum thresholds. Importantly, several lower-BIC models were discarded for failing adequacy criteria, including class imbalance and weak classification. These selections confirm that a four-class configuration provides a robust, interpretable framework for capturing latent coverage trajectories across both glycemic control and retinopathy screening outcomes. The consistent elbow inflection at four classes reinforces the theoretical plausibility and empirical stability of this structure across periods and model families.
 
-Elbow plots revealed inflection points between the three- and four-class solutions within the cubic structure, consistent with the best-ranked models passing adequacy checks. Similar trends appeared in linear and quadratic structures, albeit with higher BIC values. The elbow analysis thus corroborated the selection of the four-class cubic model without random effects as the most parsimonious and robust solution (see Supplementary Material S2–S5).
-
-**DGCC Models (2011–2019)**\
-Although the **two-class cubic random effects model** yielded the lowest BIC (–6708), it was not retained as the final specification. While it passed all model adequacy criteria—including acceptable OCC (5.2), APPA (0.887), and entropy (0.887)—its class structure was highly unbalanced, with **over 91% of individuals concentrated in a single class**. This limited differentiation suggests the model captured only a marginal subgroup, offering minimal insight into the heterogeneity of glycemic control trajectories.
-
-In contrast, the **four-class quadratic non-random effects model** (BIC = –6377) demonstrated better balance across latent classes, high classification certainty (OCC = 11.7; APPA = 0.899), and clearer practical interpretability. Its BIC also corresponded with the elbow in the trajectory plot, supporting parsimony without compromising model adequacy. For these reasons, it was selected as the optimal model for DGCC during the 2011–2019 period.
-
-**DRSC Models (2011–2023)**\
-Although the three-class cubic random effects model (`3class_cubic_random_effects_drsc_model_2011_2023`) yielded the lowest BIC (–2213.2), it was excluded due to critical adequacy concerns. Most notably, one class contained only 1.3% of the sample (n = 4), falling well below the minimum threshold for class size. Additionally, its OCC value (3.87) did not meet the recommended threshold of 5, suggesting insufficient classification certainty despite an acceptable APPA of 0.83. These limitations compromised the model’s interpretability and robustness.
-
-The four-class cubic model without random effects (`4class_cubic_nre_drsc_model_2011_2023`) was therefore retained as the optimal solution. It offered a strong balance between statistical fit (BIC = –2076.2), entropy (0.79), and classification adequacy. All four classes exceeded minimum size requirements, and adequacy indicators—including OCC (11.5) and APPA (0.854)—met recommended thresholds.
-
-Elbow plots showed a marked inflection between the three- and four-class solutions within the cubic structure, consistent with the top-ranked adequate model. Similar trends were observed in the linear and quadratic families, though with higher BIC values and weaker adequacy. These findings confirm the four-class cubic model without random effects as the most parsimonious and interpretable option among eligible solutions (see Supplementary Material S2–S5).check this now
-
-**DRSC Models (2011–2019)**\
-The four-class quadratic random effects proportional model showed the lowest BIC (–1677), followed closely by other four-class structures, including cubic and linear random effects models. However, none of the top BIC performers fully met the adequacy criteria. After filtering based on classification quality, entropy, and class size, the four-class cubic random effects proportional model (BIC = –1652) was retained as the only model meeting all requirements, with strong APPA and OCC scores and acceptable entropy.
-
-Elbow plots indicated consistent inflection points between three- and four-class solutions in both quadratic and cubic structures, reinforcing the plausibility of a four-class specification. Although five- and six-class models yielded slightly better BICs, they failed adequacy checks. The retained four-class cubic proportional model was thus selected as the optimal balance between statistical fit and parsimony (see Supplementary Material S2–S5).
-
-**Model selection summary**\
 Across all estimated models, one final specification was selected per period based on a combination of statistical fit, classification adequacy, and interpretability. For **DGCC 2011–2023**, the selected model was the **four-class cubic non-random effects model** (BIC = –8771.2), which passed all adequacy thresholds and aligned with the elbow point in the BIC curve. For **DGCC 2011–2019**, although the two-class cubic random effects model had the lowest BIC (–6708), it was excluded due to extreme class imbalance (91.3% in one class). The **four-class quadratic non-random effects model**(BIC = –6377) was retained as it met all adequacy criteria and corresponded with the elbow inflection.
 
-For **DRSC 2011–2023**, the selected model was the **four-class cubic non-random effects model** (BIC = –2076.2), which satisfied adequacy requirements and matched the elbow point between the three- and four-class solutions. Finally, for **DRSC 2011–2019**, the **four-class cubic random effects proportional model** (BIC = –1652) was selected. While it did not have the absolute lowest BIC, it was the only top-performing structure to meet all adequacy criteria, and its position at the elbow of the BIC trajectory confirmed its parsimony and interpretability.
+For **DRSC 2011–2023**, the selected model was the **four-class cubic non-random effects model** (BIC = –2076.2), which satisfied adequacy requirements and matched the elbow point between the three- and four-class solutions. Finally, for **DRSC 2011–2019**, the **four-class quadratic random effects proportional model** (BIC = –1652) was selected. While it did not have the absolute lowest BIC, it was the only top-performing structure to meet all adequacy criteria, and its position at the elbow of the BIC trajectory confirmed its parsimony and interpretability.
 
 These four models form the empirical foundation for the scenario-based simulations and comparative analysis developed in the next stage.
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| paged-print: false
+#| tbl-cap: "Table 1"
+
+selected_models <- c(
+  "4class_cubic_nre_dgcc_model_2011_2023",
+  "4class_quadratic_nre_dgcc_model_2011_2019",
+  "4class_cubic_nre_drsc_model_2011_2023",
+  "4class_quadratic_random_effects_prop_drsc_model_2011_2019"
+)
+
+model_adequacy_table %>% 
+  filter(Model %in% selected_models) %>% 
+  mutate(Model = factor(Model, levels = selected_models)) %>%
+  arrange(Model) %>% 
+  mutate(Structure= c("cubic_nre",
+                      "quadratic_nre", 
+                      "cubic_nre",
+                      "quadratic_random_effects_prop"),
+         Period= c("2011-2023",
+                   "2011-2019",
+                   "2011-2023",
+                   "2011-2019")) %>% 
+  select(Period, -Model, Structure, G, BIC, entropy, Smallest_Class_Size_Percentage, Lowest_APPA, Lowest_OCC, Highest_Mismatch, DoS_Mahalanobis) %>% 
+  dplyr::rename(
+    "Nº of classes" = G, 
+    "Relative entropy"= entropy,
+    "Smallest class size (%)" = Smallest_Class_Size_Percentage,
+    "Lowest APPA" = Lowest_APPA,
+    "Lowest OCC" = Lowest_OCC,
+    "Highest MMV" = Highest_Mismatch,
+    "Mahalanobis distance"= DoS_Mahalanobis) %>% 
+  gt() %>%
+  tab_options(
+    table.font.size = 10,
+    data_row.padding = px(1),
+    table.border.top.color = "black",
+    heading.border.bottom.color = "black",
+    row_group.border.top.color = "black",
+    row_group.border.bottom.color = "white",
+    table.border.bottom.color = "white",
+    column_labels.border.top.color = "black",
+    column_labels.border.bottom.color = "black",
+    table_body.border.bottom.color = "black",
+    table_body.hlines.color = "white"
+  ) %>% 
+  tab_row_group(
+    group = "Diabetic retinopathy screening coverage",
+    rows = 3:4
+  ) %>% 
+  tab_row_group(
+    group = "Diabetic glycemic control coverage",
+    rows =1:2
+  ) %>% 
+  tab_source_note(source_note = md(" **Abbreviations:** LCMM - Latent class mixture model; BIC - Bayesian information criteria; SCS - Smallest class size; APPA: Average class posterior probability; MMV: Mistmatch value; OCC: Odds of correct classification"))
+
+
+```
 
 **Graphical presentation**\
 Graphs were produced for the four selected models—one per outcome and period—illustrating the overall mean trajectories for each outcome (Figure 1) and latent class trajectories over time (Figure 2). These include: the two-class cubic random effects model (DGCC 2011–2019), the four-class cubic non-random effects model (DGCC 2011–2023), the four-class quadratic random effects model with proportional variance (DRSC 2011–2019), and the four-class cubic non-random effects model (DRSC 2011–2023). Each plot displays the estimated mean trajectories by class, highlighting differences in growth patterns and timing across latent subgroups.
@@ -466,7 +508,7 @@ To complement these plots, individual-level spaghetti graphs were also generated
 #| echo: false
 #| message: false
 #| warning: false
-#| fig-height: 3
+#| fig-height: 3.5
 #| fig-width: 10
 #| paged-print: false
 #| fig-cap: "Figure 1. Overall mean coverage of glycaemic control and diabetic retinopathy screening across Chilean municipalities (2011–2023). The plots display average annual coverage trends, calculated at the municipal level, for HbA1c control (left) and DR screening (right), excluding municipalities in the lowest quintile of diabetes population. The dashed red line indicates the 80% coverage benchmark used as a policy-relevant threshold."
@@ -739,14 +781,14 @@ combined_plots <- grid.arrange(
   heights = 1)
 
 # Dibujar el layout
-grid.newpage()
-grid.draw(combined_plots)
+#grid.newpage()
+#grid.draw(combined_plots)
 
 
 # Rectángulo general alrededor de todo el panel
-grid.rect(
-  gp = gpar(col = "gray30", fill = NA, lwd = 1)
-)
+#grid.rect(
+#  gp = gpar(col = "gray30", fill = NA, lwd = 1)
+#)
 
 
 ```
@@ -768,9 +810,11 @@ trajectory_labels <- list(
     "Deteriorating",
     "Highest and stable"
   ),
-  `2class_cubic_random_effects_dgcc_model_2011_2019` = c(
+  `4class_quadratic_nre_dgcc_model_2011_2019` = c(
+    "Consistently low",
     "Stable medium",
-    "Moderate increasing"
+    "Moderate increasing",
+    "Highest and stable"
   ),
   `4class_cubic_nre_drsc_model_2011_2023` = c(
     "Consistently low",
@@ -788,7 +832,7 @@ trajectory_labels <- list(
 
 model_names_to_plot <- c(
   "4class_cubic_nre_dgcc_model_2011_2023",
-  "2class_cubic_random_effects_dgcc_model_2011_2019",
+  "4class_quadratic_nre_dgcc_model_2011_2019",
   "4class_cubic_nre_drsc_model_2011_2023",
   "4class_quadratic_random_effects_prop_drsc_model_2011_2019"
 )
@@ -872,7 +916,7 @@ for (i in seq_along(selected_models)) {
       scale_x_continuous(breaks = seq(1, 13, by = 2), labels = seq(2011, 2023, by =2)) +
       scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.2), labels = percent) +
       geom_hline(yintercept = 0.8, linetype = "dashed", color = "red") +
-      #xlab("Year") +
+      xlab("Year") +
       ylab(y_axis_label) +
       theme_bw() +
       scale_color_lancet(
@@ -899,8 +943,8 @@ for (i in seq_along(selected_models)) {
         legend.title = element_text(size = 8, face = "bold"),
         axis.text = element_text(size = 6.2),
         axis.title = element_text(size = 7.5, face = "bold"),
-        axis.title.x = element_blank(),
-        axis.title.y = element_blank(),
+        #axis.title.x = element_blank(),
+        #axis.title.y = element_blank(),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank()
       )
@@ -915,9 +959,14 @@ for (i in seq_along(selected_models)) {
 }
 
 # Plot all
-grid.arrange(grobs = plot_list, ncol = 2)
-
-
+grid.arrange(grobs = plot_list, 
+             ncol = 2,
+             ,
+             layout_matrix = rbind(
+               c(1, 3),
+               c(2, 4)
+             )
+)
 
 
 
