@@ -1,0 +1,619 @@
+---
+title: "A latent trajectory analysis in glycemic control and diabetic retinopathy screening coverage 2011-2023: A municipality-level study"
+subtitle: Supplementary Material
+editor: visual
+tbl-cap-location: top
+#number-sections: true
+execute:
+  enabled: true
+  echo: false
+  warning: false
+  message: false
+  cache: false
+format:
+  html:
+    toc: true
+    toc_float: true
+    toc_depth: 2
+    number_sections: true
+    code_folding: hide
+    theme: readable
+  pdf:
+    number-sections: true
+    colorlinks: true
+    keeptex: true
+    include-in-header: 
+      text: |
+        \usepackage{booktabs}
+        \usepackage{siunitx}
+        \newcolumntype{d}{S[
+            input-open-uncertainty=,
+            input-close-uncertainty=,
+            parse-numbers = false,
+            table-align-text-pre=false,
+            table-align-text-post=false
+         ]}
+  docx: default
+prefer-html: true
+date: 'last-modified'
+---
+
+```{r}
+#| echo: false
+#| warning: false
+
+library(readr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(stringr)
+library(purrr)
+library(patchwork)
+library(tidyverse) #dplyr, tibble, ggplot2, readr, tidyr, stringr, forcats, lubridate, purr
+library(knitr)
+library(kableExtra)
+library(ggtext)
+library(Cairo)
+library(extrafont)
+library(hrbrthemes)
+library(directlabels)
+library(ggrepel)
+library(readxl)
+library(extrafont)
+library(scales)
+library(ggsci)
+library(lcmm)
+library(MixAll)
+require(kml)
+require(traj)
+require(lmerTest)
+require(plyr)
+require(psych)
+require(fpc)
+require(mclust)
+require(rcompanion)
+library(gridExtra)
+library(tidyLPA)
+library(MASS)
+library(broom)
+library(skimr)
+library(gtExtras)
+library(pander)
+library(BayesFactor)
+library(modelsummary)
+library(gt)
+library(gtsummary)
+library(survival)
+library(xtable)
+library(skimr)
+library(htmltools)
+
+
+options(scipen=10000000)
+```
+
+**Rolando Silva-Jorquera^1^, Kasim Allel^2^, Hassan Haghparast-Bidgoli^1^, Paul Nderitu^3^, Claudio Zett^4^, Abraham Olvera-Barrios^5,6^, Alasdair Warwick^5,6,7^**
+
+^1^Institute for Global Health, University College London, UK.
+
+^2^Nuffield Department of Population Health, University of Oxford, UK
+
+^3^Faculty of Life Sciences and Medicine, King’s College London, UK
+
+^4^Pontificia Universidad Católica de Valparaíso, Chile
+
+^5^NIHR Biomedical Research Centre at Moorfields Eye Hospital NHS Foundation Trust
+
+^6^Institute of Ophthalmology, University College London, UK
+
+^7^Institute of Cardiovascular Science, University College London, UK
+
+------------------------------------------------------------------------
+
+```{r}
+#| label: tbl-S1
+#| tbl-cap: "Different models structures with increasing complexity"
+#| fig-align: left
+# Table S1 - Model types, interpretation, software and references
+
+model_comparison_table <- data.frame(
+  Model = c("A", "B", "C", "D", "E", "F", "G"),
+  Description = c(
+    "Fixed effects homoscedastic (common residual variance across classes)",
+    "Fixed effects heteroscedastic (class-specific residual variances)",
+    "Random intercept",
+    "Random slope",
+    "Random quadratic – Common variance structure across classes",
+    "Random quadratic – Proportionality constraint (variance structures vary across classes)",
+    "Random quadratic – Class-specific variance structure (unstructured)"
+  ),
+  Interpretation = c(
+    "No random effects – any deviation of an individual’s trajectory from its mean class trajectory is due to random error only.",
+    "Same as Model A, but random errors can differ in size across classes.",
+    "Allows individuals to vary in initial weight; each class member follows the same shape and magnitude of the mean trajectory.",
+    "Allows individuals to vary in initial weight and slope, but same curvature as the trajectory.",
+    "Allows individuals to vary in initial weight, shape, and magnitude. Variability is common across all classes.",
+    "Allows variance structures to differ across classes up to a multiplicative factor (parsimonious version of Model G).",
+    "Each class has its own separate random quadratic variance structure; full flexibility in variance and covariance of intercept, slope, and quadratic term."
+  )
+)
+
+# Display the table
+model_comparison_table %>% 
+  gt::gt() %>%
+  tab_options(
+    table.font.size = 10,
+    data_row.padding = px(1),
+    table.border.top.color = "black",
+    heading.border.bottom.color = "black",
+    row_group.border.top.color = "black",
+    row_group.border.bottom.color = "white",
+    table.border.bottom.color = "white",
+    column_labels.border.top.color = "black",
+    column_labels.border.bottom.color = "black",
+    table_body.border.bottom.color = "black",
+    table_body.hlines.color = "white") 
+
+
+
+
+# Define model structure metadata
+structure_table <- data.frame(
+  Label = LETTERS[1:10],
+  Structure = c(
+    "linear nre homocedastic",
+    "linear nre heterocedastic",
+    "quadratic nre",
+    "cubic nre",
+    "linear random intercept",
+    "linear random intercept slope",
+    "quadratic random effects",
+    "quadratic random effects prop",
+    "cubic random effects",
+    "cubic random effects prop"
+  ),
+  Fixed_effects = c(
+    "1 + year",
+    "1 + year",
+    "1 + year + I(year^2)",
+    "1 + year + I(year^2) + I(year^3)",
+    "1 + year",
+    "1 + year",
+    "1 + year + I(year^2)",
+    "1 + year + I(year^2)",
+    "1 + year + I(year^2) + I(year^3)",
+    "1 + year + I(year^2) + I(year^3)"
+  ),
+  Random_effects = c(
+    "None",
+    "None",
+    "None",
+    "None",
+    "1 (intercept)",
+    "1 + year (intercept and slope)",
+    "1 + year (intercept and slope)",
+    "1 + year (intercept and slope)",
+    "1 + year (intercept and slope)",
+    "1 + year (intercept and slope)"
+  ),
+  Variance_structure = c(
+    "Homoscedastic",
+    "Heteroscedastic",
+    "Homoscedastic",
+    "Homoscedastic",
+    "Homoscedastic",
+    "Homoscedastic",
+    "Homoscedastic",
+    "Proportional (nwg = TRUE)",
+    "Homoscedastic",
+    "Proportional (nwg = TRUE)"
+  )
+)
+
+# View table
+structure_table
+
+```
+
+**Figure S1. Standardised residual plots by latent class under a fixed-effects, homoscedastic model - Model A (K = 1 to 7) in the 2011-2023 period.** *Standardised residual plots by latent class under a fixed-effects, homoscedastic model (K = 6 and 7). Each panel displays the distribution of standardised residuals over time (Year) for a given class within models estimated with six and seven latent classes. The plots correspond to a linear fixed-effects specification with homoscedastic non-random effects structure. While residuals appear narrowly clustered around zero due to model constraints, smoothed trend lines indicate mild curvature in several classes, particularly in models with three to five classes, suggesting potential model misspecification. These diagnostic patterns informed the decision to incorporate quadratic random effects in subsequent model refinement.*
+
+```{r}
+#| label: Fig-S1
+#| fig-align: left
+
+knitr::include_graphics("oneclass_linear_nre_homocedastic_dgcc_model_2011_2023.jpeg")
+knitr::include_graphics("oneclass_linear_nre_homocedastic_dgcc_model_2011_2019.jpeg")
+knitr::include_graphics("oneclass_linear_nre_homocedastic_drsc_model_2011_2023.jpeg")
+knitr::include_graphics("oneclass_linear_nre_homocedastic_drsc_model_2011_2019.jpeg")
+
+```
+
+**Supplementary Figures S2–S5. Latent class selection plots across model specifications.**\
+Each figure presents model comparison panels used to guide latent class number selection for a given outcome and time period. Within each panel, the black line displays the Bayesian Information Criterion (BIC) across models with 1 to 7 latent classes, allowing visual identification of the “elbow point” where model fit improvements begin to plateau. The vertical stacked bars represent the proportion of the population assigned to each class at each solution, with darker red hues indicating smaller class sizes. Together, the BIC curve and class distribution inform model selection by balancing statistical fit and classification adequacy. These plots support the decisions reported in Table 1 and discussed in the model adequacy assessment.
+
+```{r}
+#| message: false
+#| warning: false
+#| fig-height: 14
+#| fig-width: 10
+#| fig-cap: "Figure S2. Latent class selection plots for DGCC (2011–2023)"
+
+
+# Leer datos
+model_adequacy_table <- read_csv("model_adequacy_table.csv")
+
+# Filtrar sin periodo 2020_2023 y extraer estructura
+filtered_df <- model_adequacy_table %>%
+  dplyr::filter(!stringr::str_detect(Model, "2020_2023")) %>%
+  dplyr::mutate(
+    Structure = Model %>%
+      stringr::str_replace("^[0-9]+class_", "") %>%
+      stringr::str_extract("^[^_]+_[^_]+_[^_]+"),
+    Period = stringr::str_extract(Model, "\\d{4}_\\d{4}")
+  )
+
+filtered_df <- model_adequacy_table %>%
+  dplyr::filter(!stringr::str_detect(Model, "2020_2023")) %>%
+  dplyr::mutate(
+    Structure = Model %>%
+      stringr::str_replace("^[0-9]+class_", "") %>%
+      stringr::str_replace("_model_.*", ""),  # Removes everything from '_model_' onwards
+    Period = stringr::str_extract(Model, "\\d{4}_\\d{4}"),
+    Outcome = stringr::str_extract(Model, "_(drsc|dgcc)_") %>% stringr::str_replace_all("_", "")
+  ) 
+
+
+# Detectar columnas de proporción
+proportion_cols <- names(filtered_df)[stringr::str_detect(names(filtered_df), "^%class")]
+
+# Pivotear a formato largo
+class_df_long <- filtered_df %>%
+  tidyr::pivot_longer(cols = tidyselect::all_of(proportion_cols),
+                      names_to = "Class",
+                      values_to = "Proportion") %>%
+  dplyr::mutate(
+    Class = factor(Class, levels = proportion_cols)
+  )
+
+# Función para generar gráfico tipo elbow con eje secundario BIC
+plot_elbow_stack <- function(df_model) {
+  structure <- unique(df_model$Structure)
+  period <- unique(df_model$Period)
+  
+  df_summary <- df_model %>%
+    dplyr::group_by(G, Class) %>%
+    dplyr::summarise(Proportion = mean(Proportion, na.rm = TRUE), .groups = "drop")
+  
+  bic_df <- df_model %>%
+    dplyr::group_by(G) %>%
+    dplyr::summarise(BIC = mean(BIC, na.rm = TRUE), .groups = "drop")
+  
+  if (nrow(bic_df) < 2) {
+    message("Skipping plot for ", structure, " | ", period, ": not enough BIC values")
+    return(NULL)
+  }
+  
+  bic_range <- range(bic_df$BIC, na.rm = TRUE)
+  bic_min <- bic_range[1]
+  bic_max <- bic_range[2]
+  scale_factor <- 100 / (bic_max - bic_min)
+  
+  bic_df <- bic_df %>%
+    dplyr::mutate(BIC_scaled = (BIC - bic_min) * scale_factor)
+  
+  ggplot(df_summary, aes(x = factor(G), y = Proportion, fill = Class)) +
+    geom_bar(stat = "identity", color = "white") +
+    scale_fill_brewer(palette = "Reds") +
+    geom_line(data = bic_df, aes(x = factor(G), y = BIC_scaled, group = 1),
+              inherit.aes = FALSE, color = "black", size = 1) +
+    geom_point(data = bic_df, aes(x = factor(G), y = BIC_scaled),
+               inherit.aes = FALSE, color = "black", size = 2) +
+    scale_y_continuous(
+      name = "% Proportion of Population",
+      sec.axis = sec_axis(~ . / scale_factor + bic_min, name = "BIC")
+    ) +
+    labs(
+      title = paste(structure, "|", period),
+      x = "Number of Classes",
+      fill = "Class"
+    ) +
+    theme_minimal()+ 
+    theme(legend.position = "none")
+
+}
+
+# Generar lista de gráficos válidos
+plots <- class_df_long %>%
+  dplyr::group_by(Structure, Period) %>%
+  dplyr::group_split() %>%
+  purrr::map(plot_elbow_stack) %>%
+  purrr::compact()
+
+structures <- model_adequacy_table %>%
+  dplyr::filter(!stringr::str_detect(Model, "2020_2023")) %>%
+  dplyr::pull(Model) %>%
+  stringr::str_replace("^\\d+class_", "") %>%
+  stringr::str_replace("_model", "") %>%
+  unique() %>% 
+  sort()
+
+ # ahora debería dar 40
+names(plots) <- structures
+
+# Step 1: Split structures based on their pattern
+drsc_2011_2023 <- plots[str_detect(names(plots), "drsc_2011_2023")]
+dgcc_2011_2023 <- plots[str_detect(names(plots), "dgcc_2011_2023")]
+drsc_2011_2019 <- plots[str_detect(names(plots), "drsc_2011_2019")]
+dgcc_2011_2019 <- plots[str_detect(names(plots), "dgcc_2011_2019")]
+
+
+library(gridExtra)
+
+grid.arrange(
+  grobs = dgcc_2011_2023,
+  ncol = 2,  # 5 columns
+  nrow = 5   # 2 rows
+)
+
+
+
+
+
+
+
+```
+
+```{r}
+#| message: false
+#| warning: false
+#| fig-height: 14
+#| fig-width: 10
+#| fig-cap: "Figure S3. Latent class selection plots for DGCC (2011–2019)"
+
+grid.arrange(
+  grobs = dgcc_2011_2019,
+  ncol = 2,  # 5 columns
+  nrow = 5   # 2 rows
+)
+
+```
+
+```{r}
+#| message: false
+#| warning: false
+#| fig-height: 14
+#| fig-width: 10
+#| fig-cap: "Figure S4. Latent class selection plots for DRSC (2011–2023)"
+
+grid.arrange(
+  grobs = drsc_2011_2023,
+  ncol = 2,  # 5 columns
+  nrow = 5   # 2 rows
+)
+
+```
+
+```{r}
+#| message: false
+#| warning: false
+#| fig-height: 14
+#| fig-width: 10
+#| paged-print: false
+#| fig-cap: "Figure S5. Latent class selection plots for DRSC (2011–2019)"
+
+grid.arrange(
+  grobs = drsc_2011_2019,
+  ncol = 2,  # 5 columns
+  nrow = 5   # 2 rows
+)
+
+```
+
+```{r}
+#| label: tbl-S2
+#| tbl-cap: "Reporting of latent growth modeling approach using the GRoLTS checklist"
+#| fig-align: left
+
+
+grolts <- read.csv("Grolts_report1.csv", sep=",") 
+
+
+grolts %>% 
+  dplyr::rename(Items = X) %>% 
+  gt::gt() %>%
+  #tab_spanner(label = 'Model fit and diagnostic criteria', columns = 2:16) %>%
+  tab_options(
+    table.font.size = 10,
+    data_row.padding = px(1),
+    table.border.top.color = "black",
+    heading.border.bottom.color = "black",
+    row_group.border.top.color = "black",
+    row_group.border.bottom.color = "white",
+    table.border.bottom.color = "white",
+    column_labels.border.top.color = "black",
+    column_labels.border.bottom.color = "black",
+    table_body.border.bottom.color = "black",
+    table_body.hlines.color = "white") 
+
+```
+
+```{r}
+#| label: tbl-S6
+#| tbl-cap: "Logistic regression 2011-2019"
+#| fig-align: center
+#| results: "asis"
+
+
+d1 <- readr::read_csv("data_reglog.csv")
+d2 <- readr::read_csv("data_reglog2.csv")
+
+# Model 5: Single predictor (index_standardized)
+model5 <- glm(class_membership ~ index_standardized, family = "binomial", data = d2)
+# Model 5a: Single predictor (classification)
+model5a <- glm(class_membership ~ classification, family = "binomial", data = d2)
+# Model 5b: Single predictor (zona)
+model5b <- glm(class_membership ~ zona, family = "binomial", data = d2)
+# Model 5c: All predictors
+model5c <- glm(class_membership ~ index_standardized + classification + zona, family = "binomial", data = d2)
+# Model 6: Two predictors (index_standardized + classification)
+model6 <- glm(class_membership ~ index_standardized + classification, family = "binomial", data = d2)
+# Model 6a: Two predictors (index_standardized + zona)
+model6a <- glm(class_membership ~ index_standardized + zona, family = "binomial", data = d2)
+# Model 6b: Two predictors (classification + zona)
+model6b <- glm(class_membership ~ classification + zona, family = "binomial", data = d2)
+
+
+
+models2 <- list("M1" = model5, 
+               "M2" = model5a, 
+               "M3" = model5b,
+               "M4" = model6, 
+               "M5" = model6a,
+               "M6" = model6b,
+               "M7" = model5c)
+  
+# additionally we want to change the font, font size and spacing
+modelsummary(models2,
+output = 'gt',
+coef_map = c("index_standardized" = "Deprivation (Standarized ISDE score)",
+             "classificationRural" = "Urbanicity (Rural)",
+             "classificationUrbana" = "Urbanicity (Urban)",
+            "zonanorte" = "Zone (North)",
+            "zonasur" = "Zone (South)"),
+#stars = T,
+#estimate = "{estimate}{stars}",
+statistic = c("SE = {std.error}", 
+                "p = {p.value}{stars}"),
+notes = "Notes: + p < 0.1, * p < 0.05, ** p < 0.01, *** p < 0.001") %>%
+tab_spanner(label = 'Dependent variable: DRSC class', columns = 2:8) %>%
+tab_options(
+table.font.size = 10,
+data_row.padding = px(1),
+table.border.top.color = "white",
+heading.border.bottom.color = "black",
+row_group.border.top.color = "black",
+row_group.border.bottom.color = "white",
+table.border.bottom.color = "white",
+column_labels.border.top.color = "black",
+column_labels.border.bottom.color = "black",
+table_body.border.bottom.color = "black",
+table_body.hlines.color = "white"
+) %>% 
+  tab_row_group(
+    group = "",
+    rows = 1:15
+  )
+
+
+
+
+```
+
+```{r}
+#| label: tbl-S7
+#| tbl-cap: "Logistic regression 2011-2023"
+#| fig-align: left
+#| results: "asis"
+
+
+# Model 1: Single predictor (index_standardized)
+model1 <- glm(class_membership ~ index_standardized, family = "binomial", data = d1)
+# Model 1a: Single predictor (classification)
+model1a <- glm(class_membership ~ classification, family = "binomial", data = d1)
+# Model 1b: Single predictor (zona)
+model1b <- glm(class_membership ~ zona, family = "binomial", data = d1)
+# Model 1c: All predictors
+model1c <- glm(class_membership ~ index_standardized + classification + zona, family = "binomial", data = d1)
+# Model 2: Two predictors (index_standardized + classification)
+model2 <- glm(class_membership ~ index_standardized + classification, family = "binomial", data = d1)
+# Model 2a: Two predictors (index_standardized + zona)
+model2a <- glm(class_membership ~ index_standardized + zona, family = "binomial", data = d1)
+# Model 2b: Two predictors (classification + zona)
+model2b <- glm(class_membership ~ classification + zona, family = "binomial", data = d1)
+
+models <- list("M1" = model1, 
+               "M2" = model1a, 
+               "M3" = model1b,
+               "M4" = model2, 
+               "M5" = model2a,
+               "M6" = model2b,
+               "M7" = model1c)
+  
+# additionally we want to change the font, font size and spacing
+modelsummary(models,
+output = 'gt',
+coef_map = c("index_standardized" = "Deprivation (Standarized ISDE score)",
+             "classificationRural" = "Urbanicity (Rural)",
+             "classificationUrbana" = "Urbanicity (Urban)",
+            "zonanorte" = "Zona (Norte)",
+            "zonasur" = "Zona (Sur)"),
+#stars = T,
+#estimate = "{estimate}{stars}",
+statistic = c("SE = {std.error}", 
+                "p = {p.value}{stars}"),
+notes = "Notes: + p < 0.1, * p < 0.05, ** p < 0.01, *** p < 0.001") %>%
+tab_spanner(label = 'Dependent variable: DRSC class', columns = 2:8) %>%
+tab_options(
+table.font.size = 10,
+data_row.padding = px(1),
+table.border.top.color = "white",
+heading.border.bottom.color = "black",
+row_group.border.top.color = "black",
+row_group.border.bottom.color = "white",
+table.border.bottom.color = "white",
+column_labels.border.top.color = "black",
+column_labels.border.bottom.color = "black",
+table_body.border.bottom.color = "black",
+table_body.hlines.color = "white"
+) %>% 
+  tab_row_group(
+    group = "",
+    rows = 1:15
+  )
+
+
+```
+
+```{r}
+#| label: tbl-S8
+#| tbl-cap: "Framework of eight steps to construct a latent class trajectory model"
+#| fig-align: left
+
+tibble::tibble(
+  Step = 1:8,
+  `Step description` = c(
+    "Scope model by provisionally selecting a plausible number of classes based on available literature and the structure based on plausible clinical patterns.",
+    "Refine the model from step 1 to confirm the optimal number of classes, typically testing K=1–7 classes.",
+    "Refine optimal model structure from fixed through to unrestricted random effects of the model using the favoured K derived in step 2.",
+    "Run model adequacy assessments as described in online supplementary table S3 including posterior probability of assignments (APPA), odds of correct classification (OCC) and relative entropy.",
+    "Investigate graphical presentation",
+    "Run additional tools to assess discrimination including Degrees of separation (DoS) and Elsensohn’s envelope of residuals",
+    "Assess for clinical characterisation and plausibility.",
+    "Conduct sensitivity analyses, for example, testing models without complete data at all time points."
+  ),
+  `Criteria for selection` = c(
+    "Examine linearity of the shape of standardised residual plots for each of the classes in a model with no random effects.",
+    "Lowest Bayesian information criteria value.",
+    "",
+    "APPA: average of maximum probabilities should be greater than 70% for all classes.\nOCC values greater than 5.0.\nRelative entropy values greater than 0.5.",
+    "Plot mean trajectories across time for each class in a single graph.\nPlot mean trajectories with 95% predictive intervals for each class (one class per graph).\nPlot individual class ‘spaghetti plots’ across time for a random sample.",
+    "DoS greater than zero.\nEnvelope of residuals is assessed in plots by observing clear separations between classes.",
+    "Tabulation of characteristics by latent classes. Are the trajectory patterns clinically meaningful? Perhaps, consider classes with a minimum percentage of the population.\nAre the trajectory patterns clinically plausible?\nConcordance of class characteristics with those for other well-established variables.",
+    "General assessment of patterns of trajectories compared with main model."
+  )
+) %>%
+  gt::gt() %>%
+  #tab_spanner(label = 'Model fit and diagnostic criteria', columns = 2:16) %>%
+  tab_options(
+    table.font.size = 10,
+    data_row.padding = px(1),
+    table.border.top.color = "black",
+    heading.border.bottom.color = "black",
+    row_group.border.top.color = "black",
+    row_group.border.bottom.color = "white",
+    table.border.bottom.color = "white",
+    column_labels.border.top.color = "black",
+    column_labels.border.bottom.color = "black",
+    table_body.border.bottom.color = "black",
+    table_body.hlines.color = "white") 
+```
