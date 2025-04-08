@@ -87,6 +87,7 @@ library(survival)
 library(xtable)
 library(skimr)
 library(htmltools)
+library(tibble)
 
 
 options(scipen=10000000)
@@ -111,36 +112,45 @@ options(scipen=10000000)
 ------------------------------------------------------------------------
 
 ```{r}
-#| label: tbl-S1
-#| tbl-cap: "Different models structures with increasing complexity"
-#| fig-align: left
-# Table S1 - Model types, interpretation, software and references
+#| message: false
+#| warning: false
+#| tbl-align: left
 
-model_comparison_table <- data.frame(
-  Model = c("A", "B", "C", "D", "E", "F", "G"),
+
+structure_table <- data.frame(
+  Model = LETTERS[1:10],
   Description = c(
-    "Fixed effects homoscedastic (common residual variance across classes)",
-    "Fixed effects heteroscedastic (class-specific residual variances)",
-    "Random intercept",
-    "Random slope",
-    "Random quadratic – Common variance structure across classes",
-    "Random quadratic – Proportionality constraint (variance structures vary across classes)",
-    "Random quadratic – Class-specific variance structure (unstructured)"
+    "Linear without random effects with equal variances",
+    "Linear without random effects with varying variances",
+    "Quadratic without random effects",
+    "Cubic without random effects",
+    "Linear with random intercept",
+    "Linear with random intercept and slope",
+    "Quadratic with random intercept and slope",
+    "Quadratic with random intercept and slope and proportional variance",
+    "Cubic with random intercept and slope",
+    "Cubic with random intercept and slope and proportional variance"
   ),
   Interpretation = c(
-    "No random effects – any deviation of an individual’s trajectory from its mean class trajectory is due to random error only.",
-    "Same as Model A, but random errors can differ in size across classes.",
-    "Allows individuals to vary in initial weight; each class member follows the same shape and magnitude of the mean trajectory.",
-    "Allows individuals to vary in initial weight and slope, but same curvature as the trajectory.",
-    "Allows individuals to vary in initial weight, shape, and magnitude. Variability is common across all classes.",
-    "Allows variance structures to differ across classes up to a multiplicative factor (parsimonious version of Model G).",
-    "Each class has its own separate random quadratic variance structure; full flexibility in variance and covariance of intercept, slope, and quadratic term."
-  )
+    "Captures linear trends assuming constant variance across latent classes and no individual-level variability.",
+    "Captures linear trends allowing class-specific variances, without accounting for individual-level random effects.",
+    "Captures curvilinear (quadratic) trajectories with fixed effects only and shared variance structure.",
+    "Captures complex nonlinear (cubic) fixed trends without random effects or variance heterogeneity.",
+    "Allows individuals to vary in their baseline levels (intercepts) while modeling linear overall trends.",
+    "Accounts for both baseline and slope variability across individuals in modeling linear trends.",
+    "Models quadratic trajectories with random effects on both intercept and slope, allowing individual variation.",
+    "Same as previous, but allows proportional variance differences across latent classes for more flexibility.",
+    "Captures complex cubic trends while accounting for individual variation in intercepts and slopes.",
+    "Extends the cubic random effects model by allowing class-specific proportional variance structures."
+  ),
+  stringsAsFactors = FALSE
 )
 
-# Display the table
-model_comparison_table %>% 
+# View table
+structure_table %>% 
   gt::gt() %>%
+  tab_header(
+    title = md("**Supplementary Table S1. Description of the 10 candidate model structures tested in the LCMM analysis**")) %>% 
   tab_options(
     table.font.size = 10,
     data_row.padding = px(1),
@@ -152,66 +162,70 @@ model_comparison_table %>%
     column_labels.border.top.color = "black",
     column_labels.border.bottom.color = "black",
     table_body.border.bottom.color = "black",
-    table_body.hlines.color = "white") 
+    table_body.hlines.color = "white") %>% 
+  tab_source_note(source_note = md(" **Note:** Each model structure was applied across multiple class solutions (1–7 classes) and evaluated using BIC, classification adequacy, and visual interpretability to identify optimal specifications for each outcome and period."))
 
 
+```
+
+```{r}
+#| message: false
+#| warning: false
+#| tbl-align: left
 
 
-# Define model structure metadata
-structure_table <- data.frame(
-  Label = LETTERS[1:10],
-  Structure = c(
-    "linear nre homocedastic",
-    "linear nre heterocedastic",
-    "quadratic nre",
-    "cubic nre",
-    "linear random intercept",
-    "linear random intercept slope",
-    "quadratic random effects",
-    "quadratic random effects prop",
-    "cubic random effects",
-    "cubic random effects prop"
+table_s2 <- tibble::tibble(
+  Tool = c(
+    "Model Structure",
+    "BIC, AIC, LRT",
+    "APPA",
+    "Odds of Correct Classification (OCC)",
+    "Mismatch",
+    "Entropy",
+    "Relative Entropy",
+    "Degrees of Separation",
+    "Envelope of Residuals"
   ),
-  Fixed_effects = c(
-    "1 + year",
-    "1 + year",
-    "1 + year + I(year^2)",
-    "1 + year + I(year^2) + I(year^3)",
-    "1 + year",
-    "1 + year",
-    "1 + year + I(year^2)",
-    "1 + year + I(year^2)",
-    "1 + year + I(year^2) + I(year^3)",
-    "1 + year + I(year^2) + I(year^3)"
+  `Criteria for a good model` = c(
+    "—",
+    "Lowest BIC/AIC",
+    "> 0.70 for each class",
+    "> 5.0 for each class",
+    "Close to 0",
+    "Close to 0",
+    "Close to 1 (> 6.0 recommended)",
+    "Higher = more separation",
+    "Parallel and narrow boundaries"
   ),
-  Random_effects = c(
-    "None",
-    "None",
-    "None",
-    "None",
-    "1 (intercept)",
-    "1 + year (intercept and slope)",
-    "1 + year (intercept and slope)",
-    "1 + year (intercept and slope)",
-    "1 + year (intercept and slope)",
-    "1 + year (intercept and slope)"
-  ),
-  Variance_structure = c(
-    "Homoscedastic",
-    "Heteroscedastic",
-    "Homoscedastic",
-    "Homoscedastic",
-    "Homoscedastic",
-    "Homoscedastic",
-    "Homoscedastic",
-    "Proportional (nwg = TRUE)",
-    "Homoscedastic",
-    "Proportional (nwg = TRUE)"
+  Description = c(
+    "COVERAGE_itk = β₀ᵏ + β₁ᵏ·YEAR_it + β₂ᵏ·YEAR_it² + b₀ᵏ + b₁ᵏ·YEAR_it + b₂ᵏ·YEAR_it² + εₜ (Eq. 1)\n→ β: fixed effects; b: random effects; εₜ: error term.\nPr(i in class k) = exp(π_k) / Σ exp(π_l) (Eq. 2)\n→ π_k: class-specific membership parameter.",
+    "Likelihood-based tools to evaluate model parsimony and fit.",
+    "Average Posterior Probability Assignment;\nmeasures certainty of class membership.",
+    "OCC = OCC = (πg * (1 - pg)) / (pg * (1 - πg)) — compares expected vs. actual class membership.",
+    "Mismatch = Mismatch = πg - ng/N — difference between predicted and assigned class size.",
+    "Entropy = Entropy = – Σi Σg (pig * log(pig)) — global uncertainty across posterior probabilities.",
+    "Relative Entropy = 1 – (E / (G * log G)) — standardized measure of classification uncertainty.",
+    "Weighted Mahalanobis distance between predicted class means;\nhigher = more distinct classes.",
+    "Residual bounds: mean ± SD of residuals;\nnon-parallel/wide bounds suggest heteroscedasticity or poor class separation."
   )
 )
 
-# View table
-structure_table
+gt(table_s2) %>%
+  tab_header(
+    title = md("**Supplementary Table S2. Model structure and commonly assessment tools used in the LCMM analysis**")
+  ) %>%
+  tab_source_note(
+    md("*DoS and residual envelopes were implemented following Peugh & Fan and Elsensohn et al.*")
+  ) %>%
+  tab_options(
+    table.font.size = 11,
+    data_row.padding = px(2),
+    table.border.top.color = "black",
+    heading.border.bottom.color = "black",
+    column_labels.border.bottom.color = "black"
+  ) 
+
+
 
 ```
 
@@ -225,6 +239,9 @@ knitr::include_graphics("oneclass_linear_nre_homocedastic_dgcc_model_2011_2023.j
 knitr::include_graphics("oneclass_linear_nre_homocedastic_dgcc_model_2011_2019.jpeg")
 knitr::include_graphics("oneclass_linear_nre_homocedastic_drsc_model_2011_2023.jpeg")
 knitr::include_graphics("oneclass_linear_nre_homocedastic_drsc_model_2011_2019.jpeg")
+
+
+
 
 ```
 
@@ -410,7 +427,7 @@ grid.arrange(
 ```
 
 ```{r}
-#| label: tbl-S2
+#| label: tbl-S3
 #| tbl-cap: "Reporting of latent growth modeling approach using the GRoLTS checklist"
 #| fig-align: left
 
@@ -438,7 +455,7 @@ grolts %>%
 ```
 
 ```{r}
-#| label: tbl-S6
+#| label: tbl-S4
 #| tbl-cap: "Logistic regression 2011-2019"
 #| fig-align: center
 #| results: "asis"
@@ -510,7 +527,7 @@ table_body.hlines.color = "white"
 ```
 
 ```{r}
-#| label: tbl-S7
+#| label: tbl-S5
 #| tbl-cap: "Logistic regression 2011-2023"
 #| fig-align: left
 #| results: "asis"
@@ -575,7 +592,7 @@ table_body.hlines.color = "white"
 ```
 
 ```{r}
-#| label: tbl-S8
+#| label: tbl-S6
 #| tbl-cap: "Framework of eight steps to construct a latent class trajectory model"
 #| fig-align: left
 
