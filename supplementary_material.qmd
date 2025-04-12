@@ -88,6 +88,7 @@ library(xtable)
 library(skimr)
 library(htmltools)
 library(tibble)
+library(LCTMtools)
 
 
 options(scipen=10000000)
@@ -229,23 +230,134 @@ gt(table_s2) %>%
 
 ```
 
-**Figure S1. Standardised residual plots by latent class under a fixed-effects, homoscedastic model - Model A (K = 1 to 7) in the 2011-2023 period.** *Standardised residual plots by latent class under a fixed-effects, homoscedastic model (K = 6 and 7). Each panel displays the distribution of standardised residuals over time (Year) for a given class within models estimated with six and seven latent classes. The plots correspond to a linear fixed-effects specification with homoscedastic non-random effects structure. While residuals appear narrowly clustered around zero due to model constraints, smoothed trend lines indicate mild curvature in several classes, particularly in models with three to five classes, suggesting potential model misspecification. These diagnostic patterns informed the decision to incorporate quadratic random effects in subsequent model refinement.*
+**Supplementary Figure S1.** ***Standardised residual plots by latent class under Model A (fixed-effects, homoscedastic structure with four classes).***\
+Each panel shows the distribution of standardised residuals over time (Year) for a given latent class under a linear fixed-effects, homoscedastic model (Model A) with four latent classes (K = 4). The first row corresponds to DGCC (2011–2023), the second to DGCC (2011–2019), the third to DRSC (2011–2023), and the fourth to DRSC (2011–2019). Although residuals appear tightly clustered around zero due to model constraints, smoothed lines reveal mild curvature in several classes—particularly in DRSC 2011–2023—suggesting potential misspecification of fixed effects and motivating the exploration of more complex specifications, including the addition of flexible random-effects structures in subsequent models.
 
 ```{r}
 #| label: Fig-S1
 #| fig-align: left
+#| fig-height: 8
+#| fig-width: 10
 
-knitr::include_graphics("oneclass_linear_nre_homocedastic_dgcc_model_2011_2023.jpeg")
-knitr::include_graphics("oneclass_linear_nre_homocedastic_dgcc_model_2011_2019.jpeg")
-knitr::include_graphics("oneclass_linear_nre_homocedastic_drsc_model_2011_2023.jpeg")
-knitr::include_graphics("oneclass_linear_nre_homocedastic_drsc_model_2011_2019.jpeg")
+coverage <- read.csv("coverage_2011_2023_noq1.csv") %>%
+  arrange(comuna2, ano) %>%
+  mutate(
+    year = ano - min(ano) + 1,
+    id = comuna2,
+    drsc = drs_coverage,
+    dgcc = dm_coverage
+  )
 
+all_models_by_period <- readRDS("/Users/rolo/Documents/dr_lcmm/all_models_by_period.rds")# Cuando termina de correr el functions script, corro el de model adquacy
+
+
+residualplot_extended <- function(model, nameofoutcome, nameofage, data, 
+                                  ylimit = c(-1, 1), base_size = 9) {
+  require(dplyr)
+  require(ggplot2)
+  require(rlang)
+  
+  k <- ifelse(is.null(model$ng), 1, model$ng)
+  preds <- model$pred
+  names(preds)[6] <- nameofoutcome
+  nameofid <- names(model$pred)[1]
+  
+  test <- dplyr::left_join(preds, model$pprob, by = nameofid)
+  test <- dplyr::left_join(test, data, by = c(nameofid, nameofoutcome))
+  
+  plot_list <- list()
+  
+  for (i in 1:k) {
+    class_col <- if (k == 1) "pred_ss1" else paste0("pred_ss", i)
+    class_label <- if (k == 1) "1" else as.character(i)
+    
+    plot_data <- test %>%
+      filter(k == 1 | class == i) %>%
+      mutate(Residuals = get(nameofoutcome) - !!parse_expr(class_col))
+    
+    p <- ggplot(data = plot_data, aes(x = get(nameofage), y = Residuals)) +
+      theme_minimal(base_size = base_size) +
+      geom_point(size = 0.05) + 
+      stat_summary(fun = mean, geom = "line", size = 0.5, col = "CadetBlue") +
+      scale_x_continuous(breaks = seq(min(plot_data[[nameofage]], na.rm = TRUE), 
+                                      max(plot_data[[nameofage]], na.rm = TRUE), by = 2)) +
+      ggtitle(paste("Residuals in class", class_label)) +
+      xlab("Year") +
+      ylim(ylimit) +
+      theme(
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        legend.key = element_rect(fill = "white", colour = "white"),
+        panel.border = element_rect(colour = "black", fill = NA, linewidth = 1),
+        plot.title = element_text(size = 9, face = "bold")
+        
+      )
+    
+    plot_list[[i]] <- p
+  }
+  
+  return(plot_list)
+}
+
+
+library(tidyverse)
+library(gridExtra)
+library(grid)
+
+# Tus listas ya definidas
+models_to_plot <- list(
+  "DGCC 2011–2023" = all_models_by_period[["2011_2023"]][["4class_cubic_nre_dgcc_model"]],
+  "DGCC 2011–2019" = all_models_by_period[["2011_2019"]][["4class_quadratic_nre_dgcc_model"]],
+  "DRSC 2011–2023" = all_models_by_period[["2011_2023"]][["4class_cubic_nre_drsc_model"]],
+  "DRSC 2011–2019" = all_models_by_period[["2011_2019"]][["4class_quadratic_random_effects_prop_drsc_model"]]
+)
+
+outcomes <- c("dm_coverage", "dm_coverage", "drs_coverage", "drs_coverage")
+names(outcomes) <- names(models_to_plot)
+
+# Función para generar lista de plots por clase
+plot_list <- map2(models_to_plot, outcomes, ~
+                    residualplot_extended(
+                      model = .x,
+                      nameofoutcome = .y,
+                      nameofage = "ano",
+                      data = coverage
+                    )
+)
+
+# Crear filas con una columna de texto + 4 gráficos
+row_blocks <- pmap(
+  list(names(models_to_plot), plot_list),
+  function(label, plots) {
+    text_box <- textGrob(label, rot = 90, gp = gpar(fontsize = 9, fontface = "bold"))
+    arrangeGrob(grobs = c(list(text_box), plots), ncol = 5, widths = c(1.2, rep(4, 4)))
+  }
+)
+
+# Mostrar todo
+grid.arrange(
+  grobs = row_blocks,
+  ncol = 1,
+  #top = textGrob("Residuals per Class – All Four 4-Class Models", gp = gpar(fontsize = 14, fontface = "bold"))
+)
+
+
+# Descomponer y aplanar todas las clases
+#all_class_plots <- flatten(plot_list)
+
+#grid.arrange(
+#  grobs = all_class_plots,
+#  ncol = 4,
+#  top = "Residuals per Class – All Four 4-Class Models"
+#)
 
 
 
 ```
 
-**Supplementary Figures S2–S5. Latent class selection plots across model specifications.**\
+**Supplementary Figures S2–S5. *Latent class selection elbows plots across ten different structures in DGCC 2011-2023.***\
 Each figure presents model comparison panels used to guide latent class number selection for a given outcome and time period. Within each panel, the black line displays the Bayesian Information Criterion (BIC) across models with 1 to 7 latent classes, allowing visual identification of the “elbow point” where model fit improvements begin to plateau. The vertical stacked bars represent the proportion of the population assigned to each class at each solution, with darker red hues indicating smaller class sizes. Together, the BIC curve and class distribution inform model selection by balancing statistical fit and classification adequacy. These plots support the decisions reported in Table 1 and discussed in the model adequacy assessment.
 
 ```{r}
@@ -427,9 +539,225 @@ grid.arrange(
 ```
 
 ```{r}
-#| label: tbl-S3
-#| tbl-cap: "Reporting of latent growth modeling approach using the GRoLTS checklist"
-#| fig-align: left
+#| echo: false
+#| message: false
+#| warning: false
+#| paged-print: false
+
+selected_structures <- c(
+  "class_cubic_nre_dgcc_model_2011_2023",
+  "class_quadratic_nre_dgcc_model_2011_2019",
+  "class_cubic_nre_drsc_model_2011_2023",
+  "class_quadratic_random_effects_prop_drsc_model_2011_2019"
+)
+
+model_adequacy_table %>%
+  filter(str_detect(Model, paste(selected_structures, collapse = "|"))) %>% 
+  filter(str_detect(Model, "2011_2023") | str_detect(Model, "2011_2019")) %>%
+  mutate(
+    Period = case_when(
+      str_detect(Model, "2011_2023") ~ "2011–2023",
+      str_detect(Model, "2011_2019") ~ "2011–2019",
+      TRUE ~ NA_character_
+    ),
+    Structure = case_when(
+      str_detect(Model, "linear_nre_homocedastic") ~ "A",
+      str_detect(Model, "linear_nre_heterocedastic") ~ "B",
+      str_detect(Model, "quadratic_nre") ~ "C",
+      str_detect(Model, "cubic_nre") ~ "D",
+      str_detect(Model, "linear_random_intercept_slope") ~ "E",
+      str_detect(Model, "linear_random_intercept") ~ "F",
+      str_detect(Model, "quadratic_random_effects_prop") ~ "G",
+      str_detect(Model, "quadratic_random_effects") ~ "H",
+      str_detect(Model, "cubic_random_effects_prop") ~ "I",
+      str_detect(Model, "cubic_random_effects") ~ "J",
+      TRUE ~ "Unknown"
+    ),
+    Outcome = case_when(
+      str_detect(Model, "dgcc") ~ "DGCC",
+      str_detect(Model, "drsc") ~ "DRSC",
+      TRUE ~ "Other"
+    ),
+    non_converged = abs(BIC) > 1e6,  # flag large BIC
+    BIC_display = ifelse(non_converged, "*", scales::number(BIC, accuracy = 0.1, big.mark = ","))
+  ) %>%
+  mutate(
+    entropy = round(entropy, 2),
+    Lowest_APPA = round(Lowest_APPA * 100, 2),
+    Lowest_OCC = round(Lowest_OCC, 1),
+    Smallest_Class_Size_Percentage = round(Smallest_Class_Size_Percentage, 1),
+    DoS_Mahalanobis = round(DoS_Mahalanobis, 1)
+  ) %>%
+  select(Outcome, Period, Model, Structure, G, BIC_display, entropy,
+         Smallest_Class_Size_Percentage, Lowest_APPA,
+         Lowest_OCC, Highest_Mismatch, DoS_Mahalanobis) %>%
+  dplyr::rename(
+    "Nº of classes" = G,
+    "BIC" = BIC_display,
+    "Relative entropy" = entropy,
+    "Smallest class size (%)" = Smallest_Class_Size_Percentage,
+    "Lowest APPA (%)" = Lowest_APPA,
+    "Lowest OCC" = Lowest_OCC,
+    "Highest MMV" = Highest_Mismatch,
+    "Mahalanobis distance" = DoS_Mahalanobis
+  ) %>%
+  arrange(Outcome, desc(Period), Structure) %>% 
+  select(-Outcome, -Period, -Model) %>%
+  #filter(Structure %in% c("D", "C", "G")) %>% 
+  gt() %>%
+  tab_options(
+    table.font.size = 10,
+    data_row.padding = px(0),
+    table.border.top.color = "black",
+    heading.border.bottom.color = "black",
+    row_group.border.top.color = "black",
+    row_group.border.bottom.color = "white",
+    table.border.bottom.color = "white",
+    column_labels.border.top.color = "black",
+    column_labels.border.bottom.color = "black",
+    table_body.border.bottom.color = "black",
+    table_body.hlines.color = "white"
+  ) %>% 
+  tab_style(
+   style = cell_text(weight = "bold"),
+   locations = cells_body(rows = c(4, 11, 18, 25))
+  ) %>% 
+  tab_row_group(
+    group = "Diabetic retinopathy screening coverage 2011-2019",
+    rows = 22:28
+  ) %>% 
+  tab_row_group(
+    group = "Diabetic retinopathy screening coverage 2011-2023",
+    rows =15:21
+  ) %>% 
+  tab_row_group(
+    group = "Diabetic glycemic control coverage 2011-2019",
+    rows = 8:14
+  ) %>% 
+  tab_row_group(
+    group = "Diabetic glycemic control coverage 2011-2023",
+    rows =1:7
+  ) %>% 
+  tab_source_note(source_note = md("**Abbreviations:** LCMM - Latent class mixture model; BIC - Bayesian information criterion; SCS - Smallest class size; APPA - Average posterior probability; MMV - Mismatch value; OCC - Odds of correct classification. * Model did not converge; BIC not reliable.")) %>% 
+  tab_header(
+    title = md("**Supplementary Table S3. Number of classes (K=1–7) using quadratic and cubic non random effects and quadratic radnom effects proportional structure Model F (proportional covariance structure) by gender**"))
+
+```
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| paged-print: false
+
+
+model_adequacy_table <- read.csv("model_adequacy_table.csv")
+
+selected_models <- c(
+  "4class_cubic_nre_dgcc_model_2011_2023",
+  "4class_quadratic_nre_dgcc_model_2011_2019",
+  "4class_cubic_nre_drsc_model_2011_2023",
+  "4class_quadratic_random_effects_prop_drsc_model_2011_2019"
+)
+
+model_adequacy_table %>%
+  filter(str_detect(Model, "^4class_") & 
+         (str_detect(Model, "2011_2023") | str_detect(Model, "2011_2019"))) %>%
+  mutate(
+    Period = case_when(
+      str_detect(Model, "2011_2023") ~ "2011–2023",
+      str_detect(Model, "2011_2019") ~ "2011–2019",
+      TRUE ~ NA_character_
+    ),
+    Structure = case_when(
+      str_detect(Model, "linear_nre_homocedastic") ~ "A",
+      str_detect(Model, "linear_nre_heterocedastic") ~ "B",
+      str_detect(Model, "quadratic_nre") ~ "C",
+      str_detect(Model, "cubic_nre") ~ "D",
+      str_detect(Model, "linear_random_intercept_slope") ~ "E",
+      str_detect(Model, "linear_random_intercept") ~ "F",
+      str_detect(Model, "quadratic_random_effects_prop") ~ "G",
+      str_detect(Model, "quadratic_random_effects") ~ "H",
+      str_detect(Model, "cubic_random_effects_prop") ~ "I",
+      str_detect(Model, "cubic_random_effects") ~ "J",
+      TRUE ~ "Unknown"
+    ),
+    Outcome = case_when(
+      str_detect(Model, "dgcc") ~ "DGCC",
+      str_detect(Model, "drsc") ~ "DRSC",
+      TRUE ~ "Other"
+    ),
+    non_converged = abs(BIC) > 1e6,  # flag large BIC
+    BIC_display = ifelse(non_converged, "*", scales::number(BIC, accuracy = 0.1, big.mark = ","))
+  ) %>%
+  mutate(
+    entropy = round(entropy, 2),
+    Lowest_APPA = round(Lowest_APPA * 100, 2),
+    Lowest_OCC = round(Lowest_OCC, 1),
+    Smallest_Class_Size_Percentage = round(Smallest_Class_Size_Percentage, 1),
+    DoS_Mahalanobis = round(DoS_Mahalanobis, 1)
+  ) %>%
+  select(Outcome, Period, Model, Structure, G, BIC_display, entropy,
+         Smallest_Class_Size_Percentage, Lowest_APPA,
+         Lowest_OCC, Highest_Mismatch, DoS_Mahalanobis) %>%
+  dplyr::rename(
+    "Nº of classes" = G,
+    "BIC" = BIC_display,
+    "Relative entropy" = entropy,
+    "Smallest class size (%)" = Smallest_Class_Size_Percentage,
+    "Lowest APPA (%)" = Lowest_APPA,
+    "Lowest OCC" = Lowest_OCC,
+    "Highest MMV" = Highest_Mismatch,
+    "Mahalanobis distance" = DoS_Mahalanobis
+  ) %>%
+  arrange(Outcome, desc(Period), Structure) %>%
+  select(-Outcome, -Period, -Model) %>%
+  gt() %>%
+  tab_options(
+    table.font.size = 10,
+    data_row.padding = px(0),
+    table.border.top.color = "black",
+    heading.border.bottom.color = "black",
+    row_group.border.top.color = "black",
+    row_group.border.bottom.color = "white",
+    table.border.bottom.color = "white",
+    column_labels.border.top.color = "black",
+    column_labels.border.bottom.color = "black",
+    table_body.border.bottom.color = "black",
+    table_body.hlines.color = "white"
+  )  %>% 
+   tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_body(rows = c(4, 13, 24, 37))
+  ) %>% 
+  tab_row_group(
+    group = "Diabetic retinopathy screening coverage 2011-2019",
+    rows = 31:40
+  ) %>% 
+  tab_row_group(
+    group = "Diabetic retinopathy screening coverage 2011-2023",
+    rows =21:30
+  ) %>% 
+  tab_row_group(
+    group = "Diabetic glycemic control coverage 2011-2019",
+    rows = 11:20
+  ) %>% 
+  tab_row_group(
+    group = "Diabetic glycemic control coverage 2011-2023",
+    rows =1:10
+  ) %>% 
+  tab_source_note(source_note = md("**Abbreviations:** LCMM - Latent class mixture model; BIC - Bayesian information criterion; SCS - Smallest class size; APPA - Average posterior probability; MMV - Mismatch value; OCC - Odds of correct classification. * Model did not converge; BIC not reliable.")) %>% 
+  tab_header(
+    title = md("**Supplementary Table S4. Description of the 10 candidate model structures tested in the LCMM analysis**"))
+
+
+```
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| paged-print: false
 
 
 grolts <- read.csv("Grolts_report1.csv", sep=",") 
@@ -450,7 +778,9 @@ grolts %>%
     column_labels.border.top.color = "black",
     column_labels.border.bottom.color = "black",
     table_body.border.bottom.color = "black",
-    table_body.hlines.color = "white") 
+    table_body.hlines.color = "white") %>% 
+  tab_header(
+    title = md("**Supplementary Table S5. Reporting of latent growth modeling approach using the GRoLTS checklist**"))
 
 ```
 

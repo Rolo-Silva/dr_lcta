@@ -385,19 +385,25 @@ We also examined associations between trajectory membership and selected municip
 
 ## Statistical analysis
 
-We conducted a two-stage analysis to identify coverage trajectory patterns and explore their sociodemographic determinants. In the first stage, we applied latent class mixed models (LCMM) to identify trajectory classes for DRSC and DGCC from 2011 to 2023. LCMM probabilistically assigns latent classes that represent distinct coverage patterns within the population.[@berlin_introduction_2014] In the second stage, we examined whether key municipal-level characteristics were associated with trajectory class membership, following a framework based on established modelling approaches.[@lennon2018] This structure allowed us to both classify trajectory profiles and assess the contextual factors potentially shaping them.
+We conducted a two-stage analysis to identify coverage trajectory patterns and examine their sociodemographic determinants.
 
-The modelling process began with the construction of a linear fixed-effects scoping model, estimating one to seven latent classes to explore plausible trajectory structures in the absence of prior literature to guide assumptions about class number. Residual patterns from these preliminary models were then used to inform the structure: flat residuals suggested a random intercept, linear trends indicated a random slope, parabolic curves suggested a quadratic term, and more complex curvatures a cubic term.[@molenberghs_model_2009] Our preliminary models, showed a quadratic o cubic term would be fit well. This step provided a foundation for refining the optimal model based on fit criteria.
+In the first stage, we applied latent class mixed models (LCMM) to classify trajectories of DRSC and DGCC between 2011 and 2023. LCMM assigns individuals probabilistically to latent classes, each representing a distinct trajectory pattern within the population [@berlin_introduction_2014]. Ten model structures (A to J) from one to seven class-models were tested. In brief, these included homoscedastic and heteroscedastic models, as well as models with random intercepts or higher-order random effects. A detailed description of these structures is presented in Supplementary Table S1.
 
-After determining the optimal number of classes based on the lowest Bayesian Information Criterion (BIC), we refined the model by testing alternative structures. These included homoscedastic and heteroscedastic models, as well as models with random intercepts or higher-order random effects (see Supplementary Table S1). Model adequacy was assessed using standard criteria: average posterior probability of assignment (APPA \>0.70), odds of correct classification (OCC \>5), relative entropy (\>0.6), mismatch values close to 0, and a minimum class size of 2% of the sample. The 2% threshold was set to ensure meaningful class interpretation in a moderately sized population. If the criteria were not met, the number of classes and model structure were adjusted to enhance classification quality and model fit, and we considered an alternative model with a higher BIC value.
+In the second stage, we assessed whether key municipal-level characteristics were associated with class membership, using a modelling framework grounded in established approaches [@lennon2018]. This design enabled both the classification of coverage patterns and the exploration of contextual factors that may influence them.
 
-As part of the model adequacy assessment, we also constructed elbow graphs displaying the BIC values for each candidate model to visually examine the point at which model fit no longer substantially improved with the addition of more classes. By plotting BIC values alongside class proportions, we identified inflection points—“elbow bends”—that illustrated the trade-off between model complexity and goodness-of-fit. Although final model selection was guided primarily by the formal adequacy criteria described above, the elbow graphs served as a complementary heuristic to prioritize statistically robust and parsimonious solutions. Elbow plots were reviewed across all candidate structures before final selection. Once the number of classes and model structure were finalized and deemed adequate, we proceeded to visualize the model outcomes.
+The modelling process began with the specification of a linear fixed-effects model (Model A; see Supplementary Table S1**)**, which served as a scoping model to explore trajectory structures. We then evaluated patterns in the standardized residuals from these preliminary models to inform the selection of candidate model structures. Specifically, flat residuals suggested the need for a random intercept; linear trends pointed to a random slope; parabolic curves indicated a quadratic term; and more complex patterns suggested the inclusion of a cubic term.
+
+Without prior studies suggesting a specific number of latent classes for these outcomes indicating which class models to use for evaluating residuals and identifying potential structures, we improved our selection method by examining BIC value plots alongside class proportions. We used inflection points, or "elbow bends," in these BIC curves to find a compromise between model complexity and goodness-of-fit, as recommended by Molenberghs and Verbeke.[@molenberghs_model_2009]Our hypothesis regarding the number of latent classes was based on these elbow plots, and we used residual patterns to guide the potential model structure. This approach laid the groundwork for choosing and refining the best model based on statistical fit and interpretability.
+
+We refined our previously selected potential class-model and model structure by evaluating the our selected class models across the ten structures presented in Supplementary Table S1. Then, a model adequacy was assessed using standard criteria: average posterior probability of assignment (APPA \>0.70), odds of correct classification (OCC \>5), relative entropy (\>0.6), mismatch values close to 0, and a minimum class size of 2% of the sample. The 2% threshold was set to ensure meaningful class interpretation in a moderately sized population. If the criteria were not met, the number of classes and model structure were adjusted to enhance classification quality and model fit, and we considered an alternative model with a higher BIC value.
+
+As part of the model adequacy assessment, we also constructed elbow graphs for across the strucrure displaying the BIC values for each candidate model to visually examine the point at which model fit no longer substantially improved with the addition of more classes as we previously did for our scoping model (Model A). Although final model selection was guided primarily by the formal adequacy criteria described above, the elbow graphs served as a complementary heuristic to prioritize statistically robust and parsimonious solutions. Elbow plots were reviewed across all candidate structures before final selection. Once the number of classes and model structure were finalized and deemed adequate, we proceeded to visualize the model outcomes trajectories.
 
 We used three graphical presentation approaches to visualize model outcomes. The conventional approach involved plotting mean trajectories with time for each class. Additionally, we used mean trajectory plots with 95% predictive intervals for each class, which display the predicted random variation within each class. Another approach was to plot individual-level "spaghetti plots" with time (e.g., using a random sample of participants), allowing the reader to observe changes within classes over time. These three graphical techniques helped provide a comprehensive understanding of the class-specific trajectories. We have also used additional tools for model discrimination.
 
-We use degrees of separation (DoSk) to discriminate the separation of the mean trajectories across latent classes. We applied multivariate Mahalanobis distance to help identifying heterogeneous latent trajectories. Thus, higher DoSK values indicate well-separated mean trajectories, while a DoSK of zero indicates identical trajectories suggesting selection for alternative models with fewer classes.
+We use degrees of separation to discriminate the separation of the mean trajectories across latent classes. We applied multivariate Mahalanobis distance to help identifying heterogeneous latent trajectories. Thus, higher DoSK values indicate well-separated mean trajectories, while a DoSK of zero indicates identical trajectories suggesting selection for alternative models with fewer classes.
 
-We use an additional tool to asses the structure of our model trough Elsensohn’s envelope of residualsTo assess the adequacy of model structure assumptions, we implemented a residual-based diagnostic approach originally proposed by Elsenhohn et al. for fixed-effects latent class models and subsequently extended by Lennon et al. to accommodate random effects specifications. For each time point and class, we computed the weighted mean of the predicted coverage values using individuals’ posterior probabilities of class membership as weights. In parallel, we estimated the class-specific and time-specific weighted standard deviation of subject-specific residuals, centered around the weighted mean of residuals. These standard deviations were used to construct upper and lower envelopes (+- 1 SD) around the mean trajectories as a basis for graphical representation of model fit and class-specific uncertainty.
+We use an additional tool to asses the structure of our model trough Elsensohn’s envelope of residuals. To assess the adequacy of model structure assumptions, we implemented a residual-based diagnostic approach originally proposed by Elsenhohn et al. for fixed-effects latent class models and subsequently extended by Lennon et al. to accommodate random effects specifications. For each time point and class, we computed the weighted mean of the predicted coverage values using individuals’ posterior probabilities of class membership as weights. In parallel, we estimated the class-specific and time-specific weighted standard deviation of subject-specific residuals, centered around the weighted mean of residuals. These standard deviations were used to construct upper and lower envelopes (+- 1 SD) around the mean trajectories as a basis for graphical representation of model fit and class-specific uncertainty.
 
 This graphical tool provides a visual assessment of the model’s structure adequacy. Non-parallel boundaries may indicate heteroscedasticity of residuals, while markedly varying interval widths may suggest that within-class heterogeneity is not fully captured. This method is suitable for both fixed- and random-effects latent class trajectory models and contributes to identifying -or confirming - the optimal model structure.
 
@@ -419,30 +425,25 @@ This study was based on publicly available, aggregate municipality-level data wi
 
 ## Overview of DGCC and DRSC Latent Class Trajectory Estimation
 
-### **Latent class number models**
+### Latent class number models
 
-To identify the number of latent classes that best captured coverage trajectories, we initially fitted linear fixed-effects models with one to seven classes for each outcome. For diabetic glycemic control coverage (DGCC), both the four- and five-class models showed strong support across the two periods (2011–2023 and 2011–2019). The five-class solution yielded slightly lower BIC values; however, visual inspection of the BIC curve revealed an elbow at four classes, indicating marginal improvement beyond this point. Similarly, for diabetic retinopathy screening coverage (DRSC), the four-class model consistently marked the elbow in the BIC trajectory for both timeframes, offering a balanced trade-off between fit and parsimony. These selections guided the specification of the final model structures and informed the subsequent evaluation of functional form and random effects.
+To identify the number of latent trajectories, we first constructed exploratory scoping models that suggested a four-class solution for both outcomes across periods. BIC curves from linear fixed-effects models with one to seven classes (Structure A) consistently showed a distinct elbow at four classes, indicating that further class addition yielded diminishing improvements in model fit. In parallel, standardized residual plots from the one-class linear models suggested parabolic and cubic patterns, pointing to unaccounted nonlinear trends and the likely need for higher-order structures (see Supplementary Figure S1). Although these patterns emerged independently, both provided complementary justification for adopting a four-class structure as the analytical basis for subsequent model refinement.
 
 **Model structure refinement**
 
-To determine the optimal model structures for DGCC and DRSC, we tested models with a fixed number of classes across two time periods (2011–2023 and 2011–2019). A seven-class model was evaluated for DGCC in both periods, and a six-class model was assessed for DRSC. Selection was based on the lowest Bayesian Information Criterion (BIC). Specifically, for DGCC, the seven-class cubic random effects model (2011–2023) had the lowest BIC (–9137.468), while the seven-class quadratic random effects model (2011–2019) reported a BIC of –6699.831. For DRSC, the seven-class cubic random effects model (2011–2023) yielded a BIC of –2144.137, whereas the six-class linear homoscedastic model (2011–2019) achieved –1635.550. These results suggested that cubic and quadratic models captured complex nonlinear trajectories for DGCC and DRSC in the full observation period (2011–2023), while linear models reflected simpler, more stable patterns in the shorter timeframe (2011–2019).
+**We refined the model structure by testing ten predefined variants to improve fit and interpretability while retaining the four-class solution.** Each structure (A–J) varied in functional form, random effects, and error variance assumptions. We assessed them using BIC, classification quality, and theoretical coherence. Structures that failed to meet adequacy thresholds or produced uninterpretable classes were discarded (see Supplementary Table S2 and Figures S1–S4). This process confirmed the four-class configuration as robust across multiple specifications, setting the foundation for assessing consistency across outcomes and periods.
+
+To determine the optimal structure for each outcome and timeframe, we applied all ten models (A–J) to latent class solutions ranging from one to seven classes described in Supplementary Table S1 (labeled A–J). Specifically, for DGCC, the seven-class cubic random effects model (2011–2023) had the lowest BIC (–9137.5), while the seven-class quadratic random effects model (2011–2019) reported a BIC of –6699.8. For DRSC, the seven-class cubic random effects model (2011–2023) yielded a BIC of –2144.1, whereas the six-class linear homoscedastic model (2011–2019) achieved –1635.6. These results suggested that quadratic and cubic models captured complex nonlinear trajectories for DGCC and DRSC in the full observation period (2011–2023), while linear models reflected simpler, more stable patterns in the shorter timeframe (2011–2019).
 
 **Model adequacy assessment**
 
-Across all four retained models—covering both outcomes and periods—a consistent four-class structure was identified as optimal. This convergence underscores shared adequacy in classification quality, relative entropy, and interpretability, even as model structures varied: while non-random effects structures were favored for both periods in DGCC, a proportional random effects structure was required to achieve adequacy for DRSC in 2011–2019. In all cases, BIC elbow plots (Supplementary Figures S3–S6) exhibited a clear inflection between three- and four-class solutions, further validating the choice. DGCC models displayed higher relative entropy (0.83–0.85) and OCC scores (8.1–11.7), alongside relatively balanced class sizes. DRSC models showed greater dispersion in entropy and separation metrics, with the 2011–2019 model having the lowest entropy (0.66) and OCC (5.5), though still above the minimum thresholds. Importantly, several lower-BIC models were discarded for failing adequacy criteria, including class imbalance and weak classification. These selections confirm that a four-class configuration provides a robust, interpretable framework for capturing latent coverage trajectories across both glycemic control and retinopathy screening outcomes. The consistent elbow inflection at four classes reinforces the theoretical plausibility and empirical stability of this structure across periods and model families.
-
-Across all estimated models, one final specification was selected per period based on a combination of statistical fit, classification adequacy, and interpretability. For **DGCC 2011–2023**, the selected model was the **four-class cubic non-random effects model** (BIC = –8771.2), which passed all adequacy thresholds and aligned with the elbow point in the BIC curve. For **DGCC 2011–2019**, although the two-class cubic random effects model had the lowest BIC (–6708), it was excluded due to extreme class imbalance (91.3% in one class). The **four-class quadratic non-random effects model**(BIC = –6377) was retained as it met all adequacy criteria and corresponded with the elbow inflection.
-
-For **DRSC 2011–2023**, the selected model was the **four-class cubic non-random effects model** (BIC = –2076.2), which satisfied adequacy requirements and matched the elbow point between the three- and four-class solutions. Finally, for **DRSC 2011–2019**, the **four-class quadratic random effects proportional model** (BIC = –1652) was selected. While it did not have the absolute lowest BIC, it was the only top-performing structure to meet all adequacy criteria, and its position at the elbow of the BIC trajectory confirmed its parsimony and interpretability.
-
-These four models form the empirical foundation for the scenario-based simulations and comparative analysis developed in the next stage.
+Across all four retained models—covering both outcomes and periods—a consistent four-class structure was identified as optimal. This convergence underscores shared adequacy in classification quality, relative entropy, and interpretability, even as model structures varied: while non-random effects structures were favored for both periods in DGCC, a proportional random effects structure was required to achieve adequacy for DRSC in 2011–2019. In all cases, BIC elbow plots (Supplementary Figures S3–S6) exhibited a clear inflection between three- and four-class solutions, further validating the choice. DGCC models displayed higher relative entropy (0.83–0.85) and OCC scores (8.1–11.7), alongside relatively balanced class sizes. DRSC models showed greater dispersion in entropy and separation metrics, with the 2011–2019 model having the lowest entropy (0.67) and OCC (5.5), though still above the minimum thresholds. Importantly, several lower-BIC models were discarded for failing adequacy criteria, including class imbalance and weak classification. These selections confirm that a four-class configuration provides a robust, interpretable framework for capturing latent coverage trajectories across both glycemic control and retinopathy screening outcomes. The consistent elbow inflection at four classes reinforces the theoretical plausibility and empirical stability of this structure across periods and model families.
 
 ```{r}
 #| echo: false
 #| message: false
 #| warning: false
 #| paged-print: false
-#| tbl-cap: "Table 1"
 
 selected_models <- c(
   "4class_cubic_nre_dgcc_model_2011_2023",
@@ -451,31 +452,62 @@ selected_models <- c(
   "4class_quadratic_random_effects_prop_drsc_model_2011_2019"
 )
 
-model_adequacy_table %>% 
-  filter(Model %in% selected_models) %>% 
-  mutate(Model = factor(Model, levels = selected_models)) %>%
-  arrange(Model) %>% 
-  mutate(Structure= c("cubic_nre",
-                      "quadratic_nre", 
-                      "cubic_nre",
-                      "quadratic_random_effects_prop"),
-         Period= c("2011-2023",
-                   "2011-2019",
-                   "2011-2023",
-                   "2011-2019")) %>% 
-  select(Period, -Model, Structure, G, BIC, entropy, Smallest_Class_Size_Percentage, Lowest_APPA, Lowest_OCC, Highest_Mismatch, DoS_Mahalanobis) %>% 
-  dplyr::rename(
-    "Nº of classes" = G, 
-    "Relative entropy"= entropy,
+model_adequacy_table %>%
+  filter(str_detect(Model, "^4class_") & 
+         (str_detect(Model, "2011_2023") | str_detect(Model, "2011_2019"))) %>%
+  mutate(
+    Period = case_when(
+      str_detect(Model, "2011_2023") ~ "2011–2023",
+      str_detect(Model, "2011_2019") ~ "2011–2019",
+      TRUE ~ NA_character_
+    ),
+    Structure = case_when(
+      str_detect(Model, "linear_nre_homocedastic") ~ "A",
+      str_detect(Model, "linear_nre_heterocedastic") ~ "B",
+      str_detect(Model, "quadratic_nre") ~ "C",
+      str_detect(Model, "cubic_nre") ~ "D",
+      str_detect(Model, "linear_random_intercept_slope") ~ "E",
+      str_detect(Model, "linear_random_intercept") ~ "F",
+      str_detect(Model, "quadratic_random_effects_prop") ~ "G",
+      str_detect(Model, "quadratic_random_effects") ~ "H",
+      str_detect(Model, "cubic_random_effects_prop") ~ "I",
+      str_detect(Model, "cubic_random_effects") ~ "J",
+      TRUE ~ "Unknown"
+    ),
+    Outcome = case_when(
+      str_detect(Model, "dgcc") ~ "DGCC",
+      str_detect(Model, "drsc") ~ "DRSC",
+      TRUE ~ "Other"
+    ),
+    non_converged = abs(BIC) > 1e6,  # flag large BIC
+    BIC_display = ifelse(non_converged, "*", scales::number(BIC, accuracy = 0.1, big.mark = ","))
+  ) %>%
+  mutate(
+    entropy = round(entropy, 2),
+    Lowest_APPA = round(Lowest_APPA * 100, 2),
+    Lowest_OCC = round(Lowest_OCC, 1),
+    Smallest_Class_Size_Percentage = round(Smallest_Class_Size_Percentage, 1),
+    DoS_Mahalanobis = round(DoS_Mahalanobis, 1)
+  ) %>%
+  select(Outcome, Period, Model, Structure, G, BIC_display, entropy,
+         Smallest_Class_Size_Percentage, Lowest_APPA,
+         Lowest_OCC, Highest_Mismatch, DoS_Mahalanobis) %>%
+  rename(
+    "Nº of classes" = G,
+    "BIC" = BIC_display,
+    "Relative entropy" = entropy,
     "Smallest class size (%)" = Smallest_Class_Size_Percentage,
-    "Lowest APPA" = Lowest_APPA,
+    "Lowest APPA (%)" = Lowest_APPA,
     "Lowest OCC" = Lowest_OCC,
     "Highest MMV" = Highest_Mismatch,
-    "Mahalanobis distance"= DoS_Mahalanobis) %>% 
+    "Mahalanobis distance" = DoS_Mahalanobis
+  ) %>%
+  arrange(Outcome, desc(Period), Structure) %>%
+  select(-Outcome, -Period, -Model) %>%
   gt() %>%
   tab_options(
     table.font.size = 10,
-    data_row.padding = px(1),
+    data_row.padding = px(0),
     table.border.top.color = "black",
     heading.border.bottom.color = "black",
     row_group.border.top.color = "black",
@@ -485,16 +517,30 @@ model_adequacy_table %>%
     column_labels.border.bottom.color = "black",
     table_body.border.bottom.color = "black",
     table_body.hlines.color = "white"
+  )  %>% 
+   tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_body(rows = c(4, 13, 24, 37))
   ) %>% 
   tab_row_group(
-    group = "Diabetic retinopathy screening coverage",
-    rows = 3:4
+    group = "Diabetic retinopathy screening coverage 2011-2019",
+    rows = 31:40
   ) %>% 
   tab_row_group(
-    group = "Diabetic glycemic control coverage",
-    rows =1:2
+    group = "Diabetic retinopathy screening coverage 2011-2023",
+    rows =21:30
   ) %>% 
-  tab_source_note(source_note = md(" **Abbreviations:** LCMM - Latent class mixture model; BIC - Bayesian information criteria; SCS - Smallest class size; APPA: Average class posterior probability; MMV: Mistmatch value; OCC: Odds of correct classification"))
+  tab_row_group(
+    group = "Diabetic glycemic control coverage 2011-2019",
+    rows = 11:20
+  ) %>% 
+  tab_row_group(
+    group = "Diabetic glycemic control coverage 2011-2023",
+    rows =1:10
+  ) %>% 
+  tab_source_note(source_note = md("**Abbreviations:** LCMM - Latent class mixture model; BIC - Bayesian information criterion; SCS - Smallest class size; APPA - Average posterior probability; MMV - Mismatch value; OCC - Odds of correct classification. * Model did not converge; BIC not reliable.")) %>% 
+  tab_header(
+    title = md("**Table 1. Description of the 10 candidate model structures tested in the LCMM analysis**"))
 
 
 ```
