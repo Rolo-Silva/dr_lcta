@@ -67,13 +67,13 @@ bibliography: references.bib
 csl: vancouver-superscript.csl
 tbl-cap-location: top
 number-sections: true
-execute:
-  echo: false
-  warning: false
-  message: false
-  cache: false
 editor:
   mode: source
+execute:
+  echo: false
+  warning: true
+  error: true
+  cache: false
 ---
 
 ```{r}
@@ -85,283 +85,59 @@ editor:
 
 
 # Load required libraries
-library(tidyverse)
+library(readr)
 library(dplyr)
-library(lcmm)
-library(tibble)
-library(LCTMtools)
+library(tidyr)
+library(ggplot2)
 library(stringr)
-library(proxy)
-library(LCTMtools)
+library(purrr)
+library(patchwork)
+library(tidyverse) #dplyr, tibble, ggplot2, readr, tidyr, stringr, forcats, lubridate, purr
+library(knitr)
+library(kableExtra)
+library(ggtext)
+library(Cairo)
+library(extrafont)
+library(hrbrthemes)
+library(directlabels)
+library(ggrepel)
+library(readxl)
+library(extrafont)
 library(scales)
 library(ggsci)
-library(grid)
+library(lcmm)
+library(MixAll)
+require(kml)
+require(traj)
+require(lmerTest)
+require(plyr)
+require(psych)
+require(fpc)
+require(mclust)
+require(rcompanion)
 library(gridExtra)
+library(tidyLPA)
+library(MASS)
+library(broom)
+library(skimr)
+library(gtExtras)
+library(pander)
+library(BayesFactor)
+library(modelsummary)
 library(gt)
-
-coverage_2011_2023_noq1 <- read.csv("coverage_2011_2023_noq1.csv")
-
-# Load the .rds file
-all_models_by_period <- readRDS("/Users/rolo/Documents/dr_lcmm/all_models_by_period.rds")
-
-
-# 1. Renombrar modelos con sufijo del periodo
-create_named_models_by_period <- function(all_models_by_period, period_suffixes = c("2011_2023", "2011_2019", "2020_2023")) {
-  names(all_models_by_period) <- period_suffixes
-  named_models <- list()
-  
-  for (i in seq_along(all_models_by_period)) {
-    models <- all_models_by_period[[i]]
-    suffix <- period_suffixes[i]
-    renamed_models <- setNames(models, paste0(names(models), "_", suffix))
-    named_models[[i]] <- renamed_models
-  }
-  
-  all_named_models <- do.call(c, named_models)
-  return(all_named_models)
-}
+library(gtsummary)
+library(survival)
+library(xtable)
+library(skimr)
+library(htmltools)
+library(tibble)
+library(LCTMtools)
+library(grid)
+library(rlang)
+library(lmtest)
+library(quarto)
 
 
-# Función robusta y corregida para crear summary_table
-build_summary_table <- function(model_names, model_list) {
-  required_metrics <- c("G", "loglik", "conv", "npm", "AIC", "BIC", 
-                        "SABIC", "entropy", "ICL1", "ICL2", "%class")
-  
-  summary_list <- lapply(model_names, function(model_name) {
-    model_obj <- model_list[[model_name]]
-    
-    if (is.null(model_obj)) {
-      warning(paste("Model", model_name, "is NULL — skipped"))
-      return(tibble::tibble(Model = model_name))
-    }
-    
-    tryCatch({
-      # Extrae todo lo posible
-      summ <- summarytable(model_obj, which = required_metrics)
-      summ_df <- as.data.frame(summ)
-      
-      # Tomar la primera fila con métricas principales
-      first_row <- summ_df[1, , drop = FALSE]
-      
-      
-      
-      # Completar %class1 si no viene
-      if (!any(grepl("^%class1$", names(first_row))) && model_obj$ng == 1) {
-        first_row$`%class1` <- 100
-      }
-      
-      # Completar %class2 a %class7 si no existen
-      for (i in 1:7) {
-        col <- paste0("%class", i)
-        if (!(col %in% names(first_row))) {
-          first_row[[col]] <- NA_real_
-        }
-      }
-      
-      # Completar cualquier otro campo ausente
-      for (m in c("G", "loglik", "conv", "npm", "AIC", "BIC", "SABIC", "entropy", "ICL1", "ICL2")) {
-        if (!(m %in% names(first_row))) {
-          first_row[[m]] <- NA_real_
-        }
-      }
-      
-      # Agregar nombre del modelo
-      first_row$Model <- model_name
-      
-      # Reordenar
-      ordered_cols <- c("Model", "G", "loglik", "conv", "npm", "AIC", "BIC", 
-                        "SABIC", "entropy", "ICL1", "ICL2", paste0("%class", 1:7))
-      first_row <- first_row[, intersect(ordered_cols, names(first_row))]
-      return(first_row)
-    }, error = function(e) {
-      warning(paste("Error in model", model_name, ":", e$message))
-      return(tibble::tibble(Model = model_name))
-    })
-  })
-  
-  summary_table <- bind_rows(summary_list)
-  return(summary_table)
-}
-
-
-# 3. Métricas de adecuación
-extract_postprob <- function(model) {
-  tryCatch({
-    postprob_values <- postprob(model)
-    smallest_class_size_perc <- min(postprob_values[[1]][2, ], na.rm = TRUE)
-    smallest_class_count <- min(postprob_values[[1]][1, ], na.rm = TRUE)
-    list(smallest_class_size_perc = smallest_class_size_perc, smallest_class_count = smallest_class_count)
-  }, error = function(e) {
-    list(smallest_class_size_perc = NA, smallest_class_count = NA)
-  })
-}
-
-extract_occ_appa_mismatch <- function(model) {
-  tryCatch({
-    toolkit <- LCTMtoolkit(model)
-    lower_occ <- if (!is.null(toolkit$occ) && any(!is.na(toolkit$occ))) min(as.numeric(toolkit$occ[1, ]), na.rm = TRUE) else NA
-    lower_appa <- if (!is.null(toolkit$appa) && any(!is.na(toolkit$appa))) min(as.numeric(toolkit$appa[1, ]), na.rm = TRUE) else NA
-    highest_mismatch <- if (!is.null(toolkit$mismatch) && any(!is.na(toolkit$mismatch))) max(as.numeric(toolkit$mismatch[1, ]), na.rm = TRUE) else NA
-    list(lower_occ = lower_occ, lower_appa = lower_appa, highest_mismatch = highest_mismatch)
-  }, error = function(e) {
-    list(lower_occ = NA, lower_appa = NA, highest_mismatch = NA)
-  })
-}
-
-extract_vllrt <- function(prev_model, curr_model) {
-  tryCatch({
-    if (is.null(prev_model) || is.null(curr_model)) return(NA_real_)
-    if (!inherits(prev_model, c("hlme", "lcmm")) || !inherits(curr_model, c("hlme", "lcmm"))) return(NA_real_)
-    prev_npm <- as.numeric(summarytable(prev_model)[1, "npm"])
-    curr_npm <- as.numeric(summarytable(curr_model)[1, "npm"])
-    prev_loglik <- as.numeric(prev_model$loglik)
-    curr_loglik <- as.numeric(curr_model$loglik)
-    LRT_stat <- 2 * (curr_loglik - prev_loglik)
-    df_diff <- curr_npm - prev_npm
-    p_val <- pchisq(LRT_stat, df = df_diff, lower.tail = FALSE)
-    return(p_val)
-  }, error = function(e) NA_real_)
-}
-
-# 4. Proceso individual por modelo
-process_model <- function(model_name, model, prev_model = NULL) {
-  tryCatch({
-    if (!is.list(model) || is.null(model$ng)) {
-      return(tibble(Model = model_name, Error = "Invalid or missing structure"))
-    }
-    postprob_results <- if (model$ng > 1) extract_postprob(model) else list(smallest_class_size_perc = NA, smallest_class_count = NA)
-    occ_appa_mismatch_results <- extract_occ_appa_mismatch(model)
-    vllrt_p_value <- if (!is.null(prev_model)) extract_vllrt(prev_model, model) else NA_real_
-    
-    tibble(
-      Model = model_name,
-      Smallest_Class_Size_Percentage = postprob_results$smallest_class_size_perc,
-      Smallest_Class_Count = postprob_results$smallest_class_count,
-      Lowest_OCC = occ_appa_mismatch_results$lower_occ,
-      Lowest_APPA = occ_appa_mismatch_results$lower_appa,
-      Highest_Mismatch = occ_appa_mismatch_results$highest_mismatch,
-      VLMRLRT_P_Value = vllrt_p_value
-    )
-  }, error = function(e) {
-    tibble(Model = model_name, Error = as.character(e))
-  })
-}
-
-# 5. Procesar todos los modelos
-process_all_models <- function(models_list) {
-  results <- vector("list", length(models_list))
-  prev_model <- NULL
-  for (i in seq_along(models_list)) {
-    model_name <- names(models_list)[i]
-    model <- models_list[[i]]
-    results[[i]] <- process_model(model_name, model, prev_model)
-    prev_model <- model
-  }
-  bind_rows(results)
-}
-
-# 6. Tabla de adecuación final
-create_model_adequacy_table <- function(summary_table, all_named_models) {
-  consolidated_summary <- process_all_models(all_named_models)
-  summary_table$Model <- as.character(summary_table$Model)
-  consolidated_summary$Model <- as.character(consolidated_summary$Model)
-  model_adequacy_table <- summary_table %>%
-    left_join(consolidated_summary, by = "Model")
-  return(model_adequacy_table)
-}
-
-
-# --- EXTRAER COEFICIENTES POR CLASE (ROBUSTO) ---
-extract_coeffs_by_class <- function(model) {
-  tryCatch({
-    if (!inherits(model, c("hlme", "lcmm"))) return(NULL)
-    if (model$ng <= 1) return(NULL)
-    
-    beta <- model$best
-    beta_names <- names(beta)
-    
-    # Detectar coeficientes relacionados con interceptos y pendientes
-    intercept_idx <- grep("interc|Intercept|beta0", beta_names, ignore.case = TRUE)
-    slope_idx     <- grep("slope|beta1", beta_names, ignore.case = TRUE)
-    
-    # Si los nombres no ayudan, usar la estructura habitual: primeros ng coef = intercepts, siguientes ng = slopes
-    if (length(intercept_idx) < model$ng || length(slope_idx) < model$ng) {
-      intercepts <- beta[1:model$ng]
-      slopes <- beta[(model$ng + 1):(2 * model$ng)]
-    } else {
-      intercepts <- beta[intercept_idx][1:model$ng]
-      slopes <- beta[slope_idx][1:model$ng]
-    }
-    
-    coeff_df <- data.frame(intercept = as.numeric(intercepts), slope = as.numeric(slopes))
-    return(coeff_df)
-  }, error = function(e) {
-    return(NULL)
-  })
-}
-
-# --- VERSIÓN CORREGIDA ---
-calculate_Mahalanobis_DoS <- function(coeff_df, cov_matrix = NULL, use_identity_if_missing = TRUE) {
-  # ⚠️ Validación por si coeff_df es NULL
-  if (is.null(coeff_df) || !is.data.frame(coeff_df) || nrow(coeff_df) <= 1) {
-    return(NA_real_)
-  }
-  
-  ng <- nrow(coeff_df)
-  if (any(is.na(coeff_df$intercept)) || any(is.na(coeff_df$slope))) return(NA_real_)
-  
-  coef_mat <- as.matrix(coeff_df[, c("intercept", "slope")])
-  
-  if (is.null(cov_matrix)) {
-    if (use_identity_if_missing) {
-      cov_matrix <- diag(ncol(coef_mat))
-    } else {
-      cov_matrix <- cov(coef_mat)
-    }
-  }
-  
-  inv_cov <- tryCatch(solve(cov_matrix), error = function(e) NULL)
-  if (is.null(inv_cov)) return(NA_real_)
-  
-  distances <- c()
-  for (i in 1:(ng - 1)) {
-    for (j in (i + 1):ng) {
-      diff_vec <- coef_mat[i, ] - coef_mat[j, ]
-      d <- t(diff_vec) %*% inv_cov %*% diff_vec
-      distances <- c(distances, sqrt(as.numeric(d)))
-    }
-  }
-  
-  return(mean(distances, na.rm = TRUE))
-}
-
-# --- AÑADIR MAHALANOBIS DoS A LA TABLA FINAL ---
-add_Mahalanobis_DoS_to_model_table <- function(model_list, model_adequacy_table) {
-  DoS_df <- lapply(names(model_list), function(model_name) {
-    model <- model_list[[model_name]]
-    coeff_df <- extract_coeffs_by_class(model)
-    DoS_value <- calculate_Mahalanobis_DoS(coeff_df)
-    data.frame(Model = model_name, DoS_Mahalanobis = round(DoS_value, 4))
-  }) %>% do.call(rbind, .)
-  
-  model_adequacy_table <- model_adequacy_table %>%
-    left_join(DoS_df, by = "Model")
-  
-  return(model_adequacy_table)
-}
-
-# --- AÑADIR Y NORMALIZAR ---
-
-# Paso 1: crear modelos renombrados
-all_named_models <- create_named_models_by_period(all_models_by_period)
-
-# Paso 2: crear tabla resumen
-summary_table <- build_summary_table(names(all_named_models), all_named_models) 
-
-# Paso 3: tabla de adecuación final
-model_adequacy_table <- create_model_adequacy_table(summary_table, all_named_models)
-
-model_adequacy_table <- add_Mahalanobis_DoS_to_model_table(all_named_models, model_adequacy_table)
 
 ```
 
@@ -383,11 +159,15 @@ To improve representativeness, we excluded municipalities in the lowest populati
 
 We also examined associations between trajectory membership and selected municipal-level characteristics in a second stage of the analysis. These characteristics included socioeconomic deprivation, urbanicity, and geographical location. Socioeconomic deprivation was measured using the Index of Socioeconomic Development (ISED), which incorporates indicators such as income, education, housing, and sanitation. [@gattini_comunas_2013] After excluding municipalities in the lowest quintile of diabetes population at municipal level, the ISED was standardized (mean = 0, SD = 1) across the remaining sample to facilitate comparability across municipalities. Urbanicity classification followed national guidelines and categorized municipalities as predominantly rural, mixed, or predominantly urban.[@bergamini2020] Geographical zones were defined using the classification of the Environmental Tribunals, which divide the country into northern, central, and southern zones.
 
+## Missing data handling
+
+The dataset was curated to minimize missing data through predefined inclusion rules established by the health system. For DGCC, only individuals with at least one recorded HbA1c measurement within the calendar year were retained in the dataset; patients without testing after three failed contact attempts were excluded administratively, and not considered missing. For DRSC, all diagnosed patients remained in the cardiovascular program regardless of screening attendance, ensuring complete denominators. At the municipality level, we excluded units in the lowest quintile of diabetes population size to mitigate the impact of extreme values arising from unstable denominators. In the second-stage association models, no missing data were present in the municipal-level covariates (deprivation, urbanicity, and geographical zone), all of which were complete for the retained sample. As a result, all analyses were conducted on full-case data, and no imputation was required.
+
 ## Statistical analysis
 
 We conducted a two-stage analysis to identify coverage trajectory patterns and examine their sociodemographic determinants.
 
-In the first stage, we applied latent class mixed models (LCMM) to classify trajectories of DRSC and DGCC between 2011 and 2023. LCMM assigns individuals probabilistically to latent classes, each representing a distinct trajectory pattern within the population [@berlin_introduction_2014]. Ten model structures (A to J) from one to seven class-models were tested. In brief, these included homoscedastic and heteroscedastic models, as well as models with random intercepts or higher-order random effects. A detailed description of these structures is presented in Supplementary Table S1.
+In the first stage, we applied latent class mixed models (LCMM) to classify trajectories of DRSC and DGCC between 2011 and 2023. LCMM assigns individuals probabilistically to latent classes, each representing a distinct trajectory pattern within the population [@berlin_introduction_2014]. Ten model structures (A to J) from one to seven class-models were tested. In brief, these included homoscedastic and heteroscedastic models, as well as models with random intercepts or higher-order random effects. A grid search procedure was used to optimize model parameters, with initial values derived from the one-class model estimates. This method involved 200 random sets and a maximum of 1500 iterations to explore the parameter space efficiently.
 
 In the second stage, we assessed whether key municipal-level characteristics were associated with class membership, using a modelling framework grounded in established approaches [@lennon2018]. This design enabled both the classification of coverage patterns and the exploration of contextual factors that may influence them.
 
@@ -395,7 +175,7 @@ The modelling process began with the specification of a linear fixed-effects mod
 
 Without prior studies suggesting a specific number of latent classes for these outcomes indicating which class models to use for evaluating residuals and identifying potential structures, we improved our selection method by examining BIC value plots alongside class proportions. We used inflection points, or "elbow bends," in these BIC curves to find a compromise between model complexity and goodness-of-fit, as recommended by Molenberghs and Verbeke.[@molenberghs_model_2009]Our hypothesis regarding the number of latent classes was based on these elbow plots, and we used residual patterns to guide the potential model structure. This approach laid the groundwork for choosing and refining the best model based on statistical fit and interpretability.
 
-We refined our previously selected potential class-model and model structure by evaluating the our selected class models across the ten structures presented in Supplementary Table S1. Then, a model adequacy was assessed using standard criteria: average posterior probability of assignment (APPA \>0.70), odds of correct classification (OCC \>5), relative entropy (\>0.6), mismatch values close to 0, and a minimum class size of 2% of the sample. The 2% threshold was set to ensure meaningful class interpretation in a moderately sized population. If the criteria were not met, the number of classes and model structure were adjusted to enhance classification quality and model fit, and we considered an alternative model with a higher BIC value.
+We refined our previously selected potential class-model and model structure by evaluating the our selected class models across the ten structures presented in Supplementary Table S1. Then, a model adequacy was assessed using standard criteria: average posterior probability of assignment (APPA \>0.70), odds of correct classification (OCC \>5), relative entropy (\>0.6), mismatch values close to 0, and a minimum class size of 2% of the sample. The 2% threshold was set to ensure meaningful class interpretation in a moderately sized population. If the criteria were not met, the number of classes and model structure were adjusted to enhance classification quality and model fit, and we considered an alternative model with a higher BIC value. We also integrated clinical interpretability and plausibility considerations by reviewing the clinical relevance of latent class coverage patterns, ensuring that each class represented realistic and distinguishable variations in diabetes care provision.
 
 As part of the model adequacy assessment, we also constructed elbow graphs for across the strucrure displaying the BIC values for each candidate model to visually examine the point at which model fit no longer substantially improved with the addition of more classes as we previously did for our scoping model (Model A). Although final model selection was guided primarily by the formal adequacy criteria described above, the elbow graphs served as a complementary heuristic to prioritize statistically robust and parsimonious solutions. Elbow plots were reviewed across all candidate structures before final selection. Once the number of classes and model structure were finalized and deemed adequate, we proceeded to visualize the model outcomes trajectories.
 
@@ -413,11 +193,13 @@ To assess the robustness of the latent class trajectory classifications, we cond
 
 In the second stage, we examined whether municipality-level characteristics (deprivation, urbanicity, and geographical location) predicted class membership using lineal regression model. The ISED score was standardized to meet distributional assumptions, and both unadjusted and adjusted models were fitted to evaluate the strength and consistency of these associations.
 
-All analyses were conducted in R version 4.4.2, with latent class trajectory modelling performed using the `lcmm` package (version 2.1.0). Additional data processing and visualization tasks were supported by other R packages as appropriate.
+All analyses were conducted in R version 4.4.2, with latent class trajectory modelling performed using the `lcmm` package (version 2.1.0). Additional data processing and visualization tasks were supported by other R packages as appropriate.
+
+All syntax files and documentation used in the analysis are available via a public GitHub repository **\[GitHub link\].**
 
 This study adhered to the Guidelines for Reporting on Latent Trajectory Studies (GRoLTS) to ensure transparency and replicability in reporting [@vandeschoot2016].
 
-### **Ethics, Funding and Public Involvement**
+## Ethics, Funding and Public Involvement
 
 This study was based on publicly available, aggregate municipality-level data without individual identifiers; therefore, ethical approval was not required. Patients or members of the public were not involved in the design, conduct, or analysis of this study. We plan to disseminate the findings through academic conferences and by engaging with public policy stakeholders and health authorities to support evidence-informed decision-making.
 
@@ -425,306 +207,138 @@ This study was based on publicly available, aggregate municipality-level data wi
 
 ## Overview of DGCC and DRSC Latent Class Trajectory Estimation
 
-### Latent class number models
+Of the 346 municipalities with available data, we excluded those in the lowest quintile of diabetes population size (n = 46) to improve representativeness and reduce the influence of unstable denominators. As a result, 300 municipalities were retained for the 2011–2023 analyses and 289 for the 2011–2019 analyses, depending on the availability of complete time-series data for each outcome and period.
 
-To identify the number of latent trajectories, we first constructed exploratory scoping models that suggested a four-class solution for both outcomes across periods. BIC curves from linear fixed-effects models with one to seven classes (Structure A) consistently showed a distinct elbow at four classes, indicating that further class addition yielded diminishing improvements in model fit. In parallel, standardized residual plots from the one-class linear models suggested parabolic and cubic patterns, pointing to unaccounted nonlinear trends and the likely need for higher-order structures (see Supplementary Figure S1). Although these patterns emerged independently, both provided complementary justification for adopting a four-class structure as the analytical basis for subsequent model refinement.
+### Scoping models and initial trajectory structures
 
-**Model structure refinement**
+Scoping models using linear fixed-effects structures (Model A) suggested that a four-class structure offered the best balance between parsimony and fit across all combinations of outcome (DGCC or DRSC) and period (2011–2023 or 2011–2019). BIC plots consistently displayed an inflection point - where the elbow bends - at four classes for Model A , beyond which improvements in model fit were marginal (Supplementary Figures S2–S5). Standardized residuals from one-class linear models showed quadratic and cubic patterns supporting the need to explore higher-order strucrures in subsequent steps. These findings jointly supported the four-class trajectory models as a theoretically plausible and statistically grounded starting point for refinement.
 
-**We refined the model structure by testing ten predefined variants to improve fit and interpretability while retaining the four-class solution.** Each structure (A–J) varied in functional form, random effects, and error variance assumptions. We assessed them using BIC, classification quality, and theoretical coherence. Structures that failed to meet adequacy thresholds or produced uninterpretable classes were discarded (see Supplementary Table S2 and Figures S1–S4). This process confirmed the four-class configuration as robust across multiple specifications, setting the foundation for assessing consistency across outcomes and periods.
+### Number of latent classes
 
-To determine the optimal structure for each outcome and timeframe, we applied all ten models (A–J) to latent class solutions ranging from one to seven classes described in Supplementary Table S1 (labeled A–J). Specifically, for DGCC, the seven-class cubic random effects model (2011–2023) had the lowest BIC (–9137.5), while the seven-class quadratic random effects model (2011–2019) reported a BIC of –6699.8. For DRSC, the seven-class cubic random effects model (2011–2023) yielded a BIC of –2144.1, whereas the six-class linear homoscedastic model (2011–2019) achieved –1635.6. These results suggested that quadratic and cubic models captured complex nonlinear trajectories for DGCC and DRSC in the full observation period (2011–2023), while linear models reflected simpler, more stable patterns in the shorter timeframe (2011–2019).
+Building on the exploratory results, we formally compared latent class solutions ranging from one to seven classes across ten candidate model structures: quadratic, cubic, and proportional random effects. The comparison relied exclusively on BIC values, which consistently supported a four-class solution across all outcome-period combinations (Supplementary Table S3). In each case, BIC curves exhibited a marked elbow at four classes, indicating diminishing returns in model fit beyond that point. This convergence reinforced the choice of four classes as the optimal structure for further model testing.
 
-**Model adequacy assessment**
+### Model structure refinement
 
-Across all four retained models—covering both outcomes and periods—a consistent four-class structure was identified as optimal. This convergence underscores shared adequacy in classification quality, relative entropy, and interpretability, even as model structures varied: while non-random effects structures were favored for both periods in DGCC, a proportional random effects structure was required to achieve adequacy for DRSC in 2011–2019. In all cases, BIC elbow plots (Supplementary Figures S3–S6) exhibited a clear inflection between three- and four-class solutions, further validating the choice. DGCC models displayed higher relative entropy (0.83–0.85) and OCC scores (8.1–11.7), alongside relatively balanced class sizes. DRSC models showed greater dispersion in entropy and separation metrics, with the 2011–2019 model having the lowest entropy (0.67) and OCC (5.5), though still above the minimum thresholds. Importantly, several lower-BIC models were discarded for failing adequacy criteria, including class imbalance and weak classification. These selections confirm that a four-class configuration provides a robust, interpretable framework for capturing latent coverage trajectories across both glycemic control and retinopathy screening outcomes. The consistent elbow inflection at four classes reinforces the theoretical plausibility and empirical stability of this structure across periods and model families.
+Using the four-class structure as a basis, we tested ten predefined model variants (Structures A–J), each differing in functional form (linear, quadratic, cubic), random effects specification, and error variance assumptions. For DGCC, the best-performing models were Structure D (cubic, fixed effects) for 2011–2023 and Structure C (quadratic, fixed effects) for 2011–2019. For DRSC, Structure D (cubic, fixed effects) was retained for 2011–2023, while Structure G (quadratic, proportional random effects) was the best-performing model to meet adequacy thresholds for 2011–2019 (see Supplementary Table S4).
 
-```{r}
-#| echo: false
-#| message: false
-#| warning: false
-#| paged-print: false
+### Model adequacy assesment and plausibility
 
-selected_models <- c(
-  "4class_cubic_nre_dgcc_model_2011_2023",
-  "4class_quadratic_nre_dgcc_model_2011_2019",
-  "4class_cubic_nre_drsc_model_2011_2023",
-  "4class_quadratic_random_effects_prop_drsc_model_2011_2019"
-)
+All four final models (DGCC and DRSC × two periods) met the predefined adequacy thresholds, including relative entropy ≥ 0.67, average posterior probability of assignment (APPA) \> 0.70, odds of correct classification (OCC) \> 5, and mismatch values near zero, with no class representing less than 2% of the sample. Models resulting in highly imbalanced class distributions (e.g., 93% in one class and 7% in another) were rejected because they failed to represent plausible variations in care coverage. Both outcomes demonstrated adequate classification quality: DGCC models achieved high OCC scores (8.1–11.7) and entropy values (0.83–0.85), while DRSC models reached acceptable OCC levels (5.5–9.5) and entropy between 0.67 and 0.79. Supplementary Figures S3–S6 show that all retained models displayed a clear elbow point at four classes, reinforcing this structure as statistically parsimonious and theoretically meaningful.
 
-model_adequacy_table %>%
-  filter(str_detect(Model, "^4class_") & 
-         (str_detect(Model, "2011_2023") | str_detect(Model, "2011_2019"))) %>%
-  mutate(
-    Period = case_when(
-      str_detect(Model, "2011_2023") ~ "2011–2023",
-      str_detect(Model, "2011_2019") ~ "2011–2019",
-      TRUE ~ NA_character_
-    ),
-    Structure = case_when(
-      str_detect(Model, "linear_nre_homocedastic") ~ "A",
-      str_detect(Model, "linear_nre_heterocedastic") ~ "B",
-      str_detect(Model, "quadratic_nre") ~ "C",
-      str_detect(Model, "cubic_nre") ~ "D",
-      str_detect(Model, "linear_random_intercept_slope") ~ "E",
-      str_detect(Model, "linear_random_intercept") ~ "F",
-      str_detect(Model, "quadratic_random_effects_prop") ~ "G",
-      str_detect(Model, "quadratic_random_effects") ~ "H",
-      str_detect(Model, "cubic_random_effects_prop") ~ "I",
-      str_detect(Model, "cubic_random_effects") ~ "J",
-      TRUE ~ "Unknown"
-    ),
-    Outcome = case_when(
-      str_detect(Model, "dgcc") ~ "DGCC",
-      str_detect(Model, "drsc") ~ "DRSC",
-      TRUE ~ "Other"
-    ),
-    non_converged = abs(BIC) > 1e6,  # flag large BIC
-    BIC_display = ifelse(non_converged, "*", scales::number(BIC, accuracy = 0.1, big.mark = ","))
-  ) %>%
-  mutate(
-    entropy = round(entropy, 2),
-    Lowest_APPA = round(Lowest_APPA * 100, 2),
-    Lowest_OCC = round(Lowest_OCC, 1),
-    Smallest_Class_Size_Percentage = round(Smallest_Class_Size_Percentage, 1),
-    DoS_Mahalanobis = round(DoS_Mahalanobis, 1)
-  ) %>%
-  select(Outcome, Period, Model, Structure, G, BIC_display, entropy,
-         Smallest_Class_Size_Percentage, Lowest_APPA,
-         Lowest_OCC, Highest_Mismatch, DoS_Mahalanobis) %>%
-  rename(
-    "Nº of classes" = G,
-    "BIC" = BIC_display,
-    "Relative entropy" = entropy,
-    "Smallest class size (%)" = Smallest_Class_Size_Percentage,
-    "Lowest APPA (%)" = Lowest_APPA,
-    "Lowest OCC" = Lowest_OCC,
-    "Highest MMV" = Highest_Mismatch,
-    "Mahalanobis distance" = DoS_Mahalanobis
-  ) %>%
-  arrange(Outcome, desc(Period), Structure) %>%
-  select(-Outcome, -Period, -Model) %>%
-  gt() %>%
-  tab_options(
-    table.font.size = 10,
-    data_row.padding = px(0),
-    table.border.top.color = "black",
-    heading.border.bottom.color = "black",
-    row_group.border.top.color = "black",
-    row_group.border.bottom.color = "white",
-    table.border.bottom.color = "white",
-    column_labels.border.top.color = "black",
-    column_labels.border.bottom.color = "black",
-    table_body.border.bottom.color = "black",
-    table_body.hlines.color = "white"
-  )  %>% 
-   tab_style(
-    style = cell_text(weight = "bold"),
-    locations = cells_body(rows = c(4, 13, 24, 37))
-  ) %>% 
-  tab_row_group(
-    group = "Diabetic retinopathy screening coverage 2011-2019",
-    rows = 31:40
-  ) %>% 
-  tab_row_group(
-    group = "Diabetic retinopathy screening coverage 2011-2023",
-    rows =21:30
-  ) %>% 
-  tab_row_group(
-    group = "Diabetic glycemic control coverage 2011-2019",
-    rows = 11:20
-  ) %>% 
-  tab_row_group(
-    group = "Diabetic glycemic control coverage 2011-2023",
-    rows =1:10
-  ) %>% 
-  tab_source_note(source_note = md("**Abbreviations:** LCMM - Latent class mixture model; BIC - Bayesian information criterion; SCS - Smallest class size; APPA - Average posterior probability; MMV - Mismatch value; OCC - Odds of correct classification. * Model did not converge; BIC not reliable.")) %>% 
-  tab_header(
-    title = md("**Table 1. Description of the 10 candidate model structures tested in the LCMM analysis**"))
+### Graphical presentations
 
+For the four final models—one per outcome and study period—we produced graphical representations of latent class trajectories to aid interpretation. Figure 1 shows the estimated mean coverage across time for each outcome, while Figure 2 displays class-specific trajectories from the selected latent class models. These included: Model D (cubic without random effects) for DGCC 2011–2023, Model C (quadratic without random effects) for DGCC 2011–2019, Model D(cubic without random effects) for DRSC 2011–2023, and Model G (quadratic with random intercept and slope) for DRSC 2011–2019. Each trajectory plot illustrates distinct temporal patterns of coverage across latent subgroups, highlighting heterogeneity in trends and class differentiation.
 
-```
+To complement these summary plots, we generated spaghetti graphs using individual-level data for each retained model (Supplementary Figure S7), showing the distribution and dispersion of observed coverage trajectories within each latent class. These visualisations enhance interpretability by illustrating the internal variability of trajectories and the degree of within-class cohesion over time.
 
-**Graphical presentation**\
-Graphs were produced for the four selected models—one per outcome and period—illustrating the overall mean trajectories for each outcome (Figure 1) and latent class trajectories over time (Figure 2). These include: the two-class cubic random effects model (DGCC 2011–2019), the four-class cubic non-random effects model (DGCC 2011–2023), the four-class quadratic random effects model with proportional variance (DRSC 2011–2019), and the four-class cubic non-random effects model (DRSC 2011–2023). Each plot displays the estimated mean trajectories by class, highlighting differences in growth patterns and timing across latent subgroups.
+### Additionals discrimination tools
 
-To complement these plots, individual-level spaghetti graphs were also generated for each model, visualising the distribution and dispersion of observed trajectories within classes (Supplementary Figure S3). These visualisations enhance the interpretability of class-specific patterns and illustrate the temporal dynamics captured by each specification.
+To evaluate the adequacy of the model structure, we applied Elsensohn’s envelope of residuals diagnostic tool. The envelope plots, displayed in **Supplementary Figure S7**, represent the mean trajectory of each latent class with upper and lower boundaries indicating the range of residuals (±1 SD). These plots visually assessed the fit of the model at each time point and latent class.
+
+For the majority of classes, the envelope boundaries were relatively parallel, indicating that the model effectively captured the variation in coverage. However, some classes exhibited non-parallel boundaries, suggesting slight heteroscedasticity, where the variability of residuals increased or decreased over time. Additionally, some classes showed varying widths in the envelopes, which may indicate unaccounted-for within-class heterogeneity.
+
+These envelope plots confirmed that the model structure was largely adequate, although minor adjustments may be considered for classes with notable residual heterogeneity.
+
+For both DRSC and DGCC, the calculated DoSK values were consistently high, indicating well-separated classes. This suggests that the latent classes represent distinct and meaningful variations in diabetes care coverage across municipalities. Lower DoSK values observed in a few classes signified possible overlap in trajectory patterns, which was further assessed through model refinement.
+
+Epidemiolo
 
 ```{r}
 #| echo: false
 #| message: false
 #| warning: false
-#| fig-height: 3.5
+#| fig-height: 4.5
 #| fig-width: 10
 #| paged-print: false
-#| fig-cap: "Figure 1. Overall mean coverage of glycaemic control and diabetic retinopathy screening across Chilean municipalities (2011–2023). The plots display average annual coverage trends, calculated at the municipal level, for HbA1c control (left) and DR screening (right), excluding municipalities in the lowest quintile of diabetes population. The dashed red line indicates the 80% coverage benchmark used as a policy-relevant threshold."
+#| fig-cap: "**Figure 1. Overall mean coverage of glycaemic control and diabetic retinopathy screening across Chilean municipalities (2011–2023).** The plots display average annual coverage trends, calculated at the municipal level, for HbA1c control (left) and DR screening (right), excluding municipalities in the lowest quintile of diabetes population. The dashed red line indicates the 80% coverage benchmark used as a policy-relevant threshold."
 
-# Define custom trajectory labels for each model
-trajectory_labels <- list(
-  `4class_cubic_nre_dgcc_model_2011_2023` = c(
-    "Consistently low",
-    "Stable medium",
-    "Deteriorating",
-    "Highest and stable"
-  ),
-  `2class_cubic_random_effects_dgcc_model_2011_2019` = c(
-    "Stable medium",
-    "Moderate increasing"
-  ),
-  `4class_cubic_nre_drsc_model_2011_2023` = c(
-    "Consistently low",
-    "Stable medium",
-    "Increasing",
-    "Highest decreasing"
-  ),
-  `4class_quadratic_random_effects_prop_drsc_model_2011_2019` = c(
-    "Consistently low",
-    "Stable medium",
-    "Recovering",
-    "Highest and steady"
+library(readr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(stringr)
+library(purrr)
+library(patchwork)
+library(tidyverse) #dplyr, tibble, ggplot2, readr, tidyr, stringr, forcats, lubridate, purr
+library(knitr)
+library(kableExtra)
+library(ggtext)
+library(Cairo)
+library(extrafont)
+library(hrbrthemes)
+library(directlabels)
+library(ggrepel)
+library(readxl)
+library(extrafont)
+library(scales)
+library(ggsci)
+library(lcmm)
+library(MixAll)
+require(kml)
+require(traj)
+require(lmerTest)
+require(plyr)
+require(psych)
+require(fpc)
+require(mclust)
+require(rcompanion)
+library(gridExtra)
+library(tidyLPA)
+library(MASS)
+library(broom)
+library(skimr)
+library(gtExtras)
+library(pander)
+library(BayesFactor)
+library(modelsummary)
+library(gt)
+library(gtsummary)
+library(survival)
+library(xtable)
+library(skimr)
+library(htmltools)
+library(tibble)
+library(LCTMtools)
+library(grid)
+library(rlang)
+library(lmtest)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 📂 Cargar archivos necesarios
+coverage_2011_2023_noq1 <- read.csv("coverage_2011_2023_noq1.csv") 
+
+all_models_by_period <- readRDS("all_models_by_period.rds")
+
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 🗓️ Definir periodos utilizados
+periods <- list(
+  "2011_2023" = 1:13,
+  "2011_2019" = 1:9
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 🧼 Preprocesamiento del dataset
+coverage_data <- coverage_2011_2023_noq1 %>%
+  arrange(comuna2, ano) %>%
+  mutate(
+    year = ano - min(ano) + 1,
+    id = comuna2,
+    drsc = drs_coverage,
+    dgcc = dm_coverage
   )
-)
 
-model_names_to_plot <- c(
-  "4class_cubic_nre_dgcc_model_2011_2023",
-  "2class_cubic_random_effects_dgcc_model_2011_2019",
-  "4class_cubic_nre_drsc_model_2011_2023",
-  "4class_quadratic_random_effects_prop_drsc_model_2011_2019"
-)
 
-selected_models <- all_named_models[model_names_to_plot]
-plot_list <- list()
-all_merged_df <- list()
+# ─────────────────────────────────────────────────────────────────────────────
+# 📊 1. General trends (no latent classes)
 
-for (i in seq_along(selected_models)) {
-  model_name <- names(selected_models)[i]
-  model <- selected_models[[model_name]]
-  
-  if (!is.null(model) && !is.null(model$call$data) && !is.null(model$pred) && !is.null(model$pprob)) {
-    available_vars <- names(model$call$data)
-    
-    outcome_var <- case_when(
-      grepl("drsc", model_name, ignore.case = TRUE) ~ "drs_coverage",
-      grepl("dgcc", model_name, ignore.case = TRUE) ~ "dm_coverage",
-      TRUE ~ NA_character_
-    )
-    
-    if (!outcome_var %in% available_vars) {
-      cat("⚠️ Variable", outcome_var, "not found in model:", model_name, "\n")
-      next
-    }
-    
-    model_data <- model$call$data %>%
-      group_by(id) %>%
-      mutate(row_id = row_number()) %>%
-      ungroup()
-    
-    pred_df <- model$pred %>%
-      group_by(id) %>%
-      mutate(row_id = row_number()) %>%
-      ungroup()
-    
-    merged_df <- left_join(model_data, pred_df, by = c("id", "row_id")) %>%
-      left_join(model$pprob, by = "id") %>%
-      filter(!is.na(class))
-    
-    summary_data <- merged_df %>%
-      group_by(year, class) %>%
-      dplyr::summarise(
-        mean_coverage = mean(.data[[outcome_var]], na.rm = TRUE),
-        sd_coverage = sd(.data[[outcome_var]], na.rm = TRUE),
-        n_coverage = n(),
-        .groups = "drop"
-      ) %>%
-      mutate(
-        se_mean = sd_coverage / sqrt(n_coverage),
-        margin_error = 1.96 * se_mean,
-        lower_ci = mean_coverage - margin_error,
-        upper_ci = mean_coverage + margin_error,
-        model = model_name
-      )
-    
-    class_percentages <- merged_df %>%
-      group_by(class) %>%
-      dplyr::summarise(n = n(), .groups = "drop") %>%
-      mutate(
-        percentage = n / sum(n),
-        label = paste0(trajectory_labels[[model_name]], " (", percent(percentage, accuracy = 0.1), ")")
-      )
-    
-    y_axis_label <- if (grepl("dgcc", model_name, ignore.case = TRUE)) {
-      "Average glycaemic coverage"
-    } else {
-      "Average DR screening coverage"
-    }
-    
-    plot <- ggplot(merged_df, aes(x = year, colour = as.factor(class))) +
-      geom_line(data = summary_data, aes(y = mean_coverage), linewidth = 0.3) +
-      geom_point(data = summary_data, aes(y = mean_coverage), size = 1.5) +
-      geom_errorbar(data = summary_data, aes(ymin = lower_ci, ymax = upper_ci, color = as.factor(class)), width = 0.25) +
-      #scale_x_continuous(breaks = c(1:13), labels = 2011:2023) +
-      scale_x_continuous(breaks = seq(1, 13, by = 2), labels = seq(2011, 2023, by =2)) +
-      scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.2), labels = percent) +
-      geom_hline(yintercept = 0.8, linetype = "dashed", color = "red") +
-      xlab("Year") +
-      ylab(y_axis_label) +
-      theme_bw() +
-      scale_color_lancet(
-        labels = class_percentages$label,
-        na.translate = FALSE,
-        guide = guide_legend(override.aes = list(
-          linetype = "solid",
-          shape = 16,
-          size = 2
-        ))
-      ) +
-      labs(color = "Latent class") +
-      #ggtitle(model_name) +
-      guides(color = guide_legend(nrow = 2, byrow = TRUE, title.position = "top", title.hjust = 0)) +
-      theme(
-        legend.position = c(0.02, 0.98),
-        legend.justification = c(0, 1),
-        legend.direction = "horizontal",
-        legend.box = "horizontal",
-        legend.margin = margin(t = 1, b = 1, r = 1, l = 1),
-        legend.key.size = unit(0.2, "cm"),
-        legend.background = element_rect(fill = "transparent", color = NA),
-        legend.text = element_text(size = 9),
-        legend.title = element_text(size = 9, face = "bold"),
-        axis.text = element_text(size = 9),
-        axis.title = element_text(size = 9, face = "bold"),
-        #axis.title.x = element_blank(),
-        #axis.title.y = element_blank(),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank()
-      )
-    
-    merged_df$outcome_var <- outcome_var
-    merged_df$model_name <- model_name
-    all_merged_df[[model_name]] <- merged_df
-    plot_list[[i]] <- plot
-  } else {
-    cat(paste("⚠️ Warning: Model missing components:", model_name, "\n"))
-  }
-}
-
-# Plot all
-#grid.arrange(grobs = plot_list, ncol = 2)
-
-# Optional: combine data if needed
-#merged_df_all <- bind_rows(all_merged_df)
-# Unir todo en un solo dataframe
-merged_df_all <- bind_rows(all_merged_df)
-
-# Para dm_coverage
-dm_data <- merged_df_all %>% filter(outcome_var == "dm_coverage")
-drs_data <- merged_df_all %>% filter(outcome_var == "drs_coverage")
-
-general_dm_trend <- dm_data %>%
+general_dm_trend <- coverage_data %>%
   group_by(year) %>%
   dplyr::summarise(
-    mean_coverage = mean(dm_coverage, na.rm = TRUE),
-    sd_coverage = sd(dm_coverage, na.rm = TRUE),
+    mean_coverage = mean(dgcc, na.rm = TRUE),
+    sd_coverage = sd(dgcc, na.rm = TRUE),
     n_coverage = n(),
     se_mean = sd_coverage / sqrt(n_coverage),
     margin_error = 1.96 * se_mean,
@@ -733,11 +347,11 @@ general_dm_trend <- dm_data %>%
     .groups = "drop"
   )
 
-general_drs_trend <- drs_data %>%
+general_drs_trend <- coverage_data %>%
   group_by(year) %>%
   dplyr::summarise(
-    mean_coverage = mean(drs_coverage, na.rm = TRUE),
-    sd_coverage = sd(drs_coverage, na.rm = TRUE),
+    mean_coverage = mean(drsc, na.rm = TRUE),
+    sd_coverage = sd(drsc, na.rm = TRUE),
     n_coverage = n(),
     se_mean = sd_coverage / sqrt(n_coverage),
     margin_error = 1.96 * se_mean,
@@ -746,121 +360,96 @@ general_drs_trend <- drs_data %>%
     .groups = "drop"
   )
 
-
-
-# Plot general trend – HbA1C < 7%
 plot_dm <- ggplot(general_dm_trend, aes(x = year, y = mean_coverage)) +
   geom_line(color = "red", linewidth = 0.3) +
   geom_point(size =1.5, color = "red") +
   geom_errorbar(aes(ymin = lower_ci, ymax = upper_ci), width = 0.25, color = "red") +
   geom_hline(yintercept = 0.8, linetype = "dashed", color = "red") +
   scale_x_continuous(breaks = seq(1, 13, by = 2), labels = seq(2011, 2023, by =2)) +
-  #scale_x_continuous(breaks = 1:13, labels = 2011:2023) +
-  scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.2), labels = percent) +
-  labs(
-    x="Year",
-    y = "Average glycaemic coverage",
-    #title = "Proportion of T2DM individuals with HbA1C < 7%"
-  ) +
-  scale_color_lancet()+
+  scale_y_continuous(limits = c(0, 1), labels = percent) +
+  labs(x="Year", y = "Average glycaemic coverage") +
   theme_bw() +
   theme(
     legend.position = "none",
     axis.text = element_text(size = 9),
     axis.title = element_text(size = 9),
     panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    #axis.title.x = element_blank(),
+    panel.grid.minor = element_blank()
   )
 
-
-# Plot general trend – DR screening
 plot_drs <- ggplot(general_drs_trend, aes(x = year, y = mean_coverage)) +
   geom_line(color = "red", linewidth = 0.3) +
   geom_point(size = 1.5, color = "red") +
   geom_errorbar(aes(ymin = lower_ci, ymax = upper_ci), width = 0.25, color = "red") +
   geom_hline(yintercept = 0.8, linetype = "dashed", color = "red") +
   scale_x_continuous(breaks = seq(1, 13, by = 2), labels = seq(2011, 2023, by =2)) +
-  scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.2), labels = percent) +
-  labs(
-    #y = "",
-    x="Year",
-    y= "Average DR screening coverage"
-  ) +
-  scale_color_lancet()+
+  scale_y_continuous(limits = c(0, 1), labels = percent) +
+  labs(x="Year", y = "Average DR screening coverage") +
   theme_bw() +
   theme(
     legend.position = "none",
     axis.text = element_text(size =9),
     axis.title = element_text(size = 9),
     panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    
-    #axis.title.x = element_blank(),
+    panel.grid.minor = element_blank()
   )
 
-# Juntar los general trend plots con los modelos latentes
-# Suponiendo que `plot_list` ya contiene los 4 plots de trayectorias
-
-# Creamos la estructura con 3 columnas, ubicando:
-# - plot_dm en fila 1, columna 1
-# - plot_drs en fila 2, columna 1
-# - los 4 plots del modelo en columnas 2 y 3
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 🧠 Asignar el coverage_data adecuado a cada modelo por periodo
+for (period_name in names(all_models_by_period)) {
+  period_data <- coverage_data %>% filter(year %in% periods[[period_name]])
+  
+  for (model_name in names(all_models_by_period[[period_name]])) {
+    model <- all_models_by_period[[period_name]][[model_name]]
+    
+    if (!is.null(model)) {
+      model$call$data <- period_data
+      all_models_by_period[[period_name]][[model_name]] <- model
+    }
+  }
+}
 
-#title_hba1c <- textGrob("Diabetic glycaemic control coverage", gp = gpar(fontsize = 12, fontface = "bold"))
-#title_drs   <- textGrob("Diebetic retinopathy screening coverage", gp = gpar(fontsize = 12, fontface = "bold"))
+# ─────────────────────────────────────────────────────────────────────────────
+# 🔁 Renombrar todos los modelos agregando sufijo de periodo
+create_named_models_by_period <- function(all_models_by_period, period_suffixes = names(all_models_by_period)) {
+  names(all_models_by_period) <- period_suffixes
+  named_models <- list()
+  
+  for (i in seq_along(all_models_by_period)) {
+    models <- all_models_by_period[[i]]
+    suffix <- period_suffixes[i]
+    renamed_models <- setNames(models, paste0(names(models), "_", suffix))
+    named_models[[i]] <- renamed_models
+  }
+  
+  all_named_models <- do.call(c, named_models)
+  return(all_named_models)
+}
 
-#plot_dm <- plot_dm + theme(plot.margin = margin(t = 5, r = 15, b = 5, l = 5))
-#plot_drs <- plot_drs + theme(plot.margin = margin(t = 5, r = 5, b = 5, l = 15))
+all_named_models <- create_named_models_by_period(all_models_by_period)
 
-combined_plots <- grid.arrange(
-  grobs = list(
-   # title_hba1c, title_drs,             
-     plot_dm, plot_drs
-  ),
-  layout_matrix = rbind( # Títulos de columna
-    c(3, 4) # General trends
-     # Trayectorias 2
-  ),
-  heights = 1)
-
-# Dibujar el layout
-#grid.newpage()
-#grid.draw(combined_plots)
-
-
-# Rectángulo general alrededor de todo el panel
-#grid.rect(
-#  gp = gpar(col = "gray30", fill = NA, lwd = 1)
-#)
-
-
-```
-
-```{r}
-#| message: false
-#| echo: false
-#| warning: false
-#| paged-print: false
-#| fig-height: 7
-#| fig-width: 10
-#| fig-cap: "Figure 2. Latent trajectories of observed mean glycaemic control and diabetic retinopathy (DR) screening coverage across Chilean municipalities. The left column presents plots for glycaemic control (HbA1c < 7%), and the right column for annual DR screening. The plots at the top are based on data from 2011 to 2023, while those below use data restricted to the 2011–2019 period. Each panel displays average annual coverage with 95% confidence intervals, stratified by latent classes identified through longitudinal mixture modeling. The dashed red line indicates the 80% coverage threshold used as a policy benchmark. Municipalities in the lowest quintile of diabetes coverage were excluded from the analysis."
+# ─────────────────────────────────────────────────────────────────────────────
+# 💾 Guardar las versiones parchadas
+#saveRDS(all_models_by_period, "all_models_by_period_with_data.rds")
+saveRDS(all_named_models, "all_named_models.rds")
+all_named_models <- readRDS("all_named_models.rds")
 
 # Define custom trajectory labels for each model
 trajectory_labels <- list(
-  `4class_cubic_nre_dgcc_model_2011_2023` = c(
-    "Consistently low",
+  `5class_cubic_nre_dgcc_model_2011_2023` = c(
+    "Consistently lower",
     "Stable medium",
+    "Stable upper medium",
     "Deteriorating",
-    "Highest and stable"
+    "Highest"
   ),
   `4class_quadratic_nre_dgcc_model_2011_2019` = c(
-    "Consistently low",
+    "Consistently lower",
     "Stable medium",
-    "Moderate increasing",
-    "Highest and stable"
+    "Stable upper medium",
+    "Highest"
   ),
   `4class_cubic_nre_drsc_model_2011_2023` = c(
     "Consistently low",
@@ -872,20 +461,24 @@ trajectory_labels <- list(
     "Consistently low",
     "Stable medium",
     "Recovering",
-    "Highest and steady"
+    "Highest"
   )
 )
 
 model_names_to_plot <- c(
-  "4class_cubic_nre_dgcc_model_2011_2023",
+  "5class_cubic_nre_dgcc_model_2011_2023",
   "4class_quadratic_nre_dgcc_model_2011_2019",
   "4class_cubic_nre_drsc_model_2011_2023",
   "4class_quadratic_random_effects_prop_drsc_model_2011_2019"
 )
 
+
+
+
 selected_models <- all_named_models[model_names_to_plot]
 plot_list <- list()
 all_merged_df <- list()
+
 
 for (i in seq_along(selected_models)) {
   model_name <- names(selected_models)[i]
@@ -895,8 +488,8 @@ for (i in seq_along(selected_models)) {
     available_vars <- names(model$call$data)
     
     outcome_var <- case_when(
-      grepl("drsc", model_name, ignore.case = TRUE) ~ "drs_coverage",
-      grepl("dgcc", model_name, ignore.case = TRUE) ~ "dm_coverage",
+      grepl("drsc", model_name, ignore.case = TRUE) ~ "drsc",
+      grepl("dgcc", model_name, ignore.case = TRUE) ~ "dgcc",
       TRUE ~ NA_character_
     )
     
@@ -918,9 +511,8 @@ for (i in seq_along(selected_models)) {
     merged_df <- left_join(model_data, pred_df, by = c("id", "row_id")) %>%
       left_join(model$pprob, by = "id") %>%
       filter(!is.na(class))
-    merged_df$class
+ 
     
-   
     summary_data <- merged_df %>%
       group_by(year, class) %>%
       dplyr::summarise(
@@ -937,14 +529,42 @@ for (i in seq_along(selected_models)) {
         model = model_name
       )
     
+    # Calcular media por clase
+    class_order <- merged_df %>%
+      group_by(class) %>%
+      dplyr::summarise(mean_value = mean(.data[[outcome_var]], na.rm = TRUE), .groups = "drop") %>%
+      arrange(mean_value) %>%
+      mutate(class_order = row_number())
+    
+    # Reasignar clases por orden lógico (más baja a más alta)
+    merged_df <- merged_df %>%
+      left_join(class_order, by = "class") %>%
+      mutate(class = class_order) %>%
+      select(-class_order)
+    
+    summary_data <- summary_data %>%
+      left_join(class_order, by = "class") %>%
+      mutate(class = class_order) %>%
+      select(-class_order)
+    
+    # Ahora construir el label en orden correcto
     class_percentages <- merged_df %>%
       distinct(id, class) %>%
       group_by(class) %>%
       dplyr::summarise(n = n(), .groups = "drop") %>%
-      mutate(
-        percentage = n / sum(n),
-        label = paste0(trajectory_labels[[model_name]], " (", percent(percentage, accuracy = 0.1), ")")
-      )
+      mutate(percentage = n / sum(n))
+    
+    # Validar que coincida la longitud
+    trajectory_vector <- trajectory_labels[[model_name]]
+    if (length(trajectory_vector) != nrow(class_percentages)) {
+      stop("⚠️ Número de etiquetas no coincide con el número de clases")
+    }
+    
+    # Asignar etiqueta
+    class_percentages <- class_percentages %>%
+      arrange(class) %>%
+      mutate(label = paste0(trajectory_vector, " (", percent(percentage, accuracy = 0.1), ")"))
+    
     
     
     
@@ -1004,15 +624,170 @@ for (i in seq_along(selected_models)) {
   }
 }
 
-# Plot all
-grid.arrange(grobs = plot_list, 
-             ncol = 2,
-             ,
-             layout_matrix = rbind(
-               c(1, 3),
-               c(2, 4)
-             )
+
+
+
+# Titles as text grobs
+dgcc_title <- wrap_elements(grid::textGrob(
+  "Diabetic glycaemic control coverage", 
+  x = 0, hjust = 0, gp = gpar(fontface = "bold", fontsize = 13)
+))
+
+drsc_title <- wrap_elements(grid::textGrob(
+  "Diabetic retinopathy screening coverage", 
+  x = 0, hjust = 0, gp = gpar(fontface = "bold", fontsize = 13)
+))
+
+# Combine each title + plot with reduced spacing
+dgcc_block <- dgcc_title / plot_dm + plot_layout(heights = c(0.1, 1))
+drsc_block <- drsc_title / plot_drs + plot_layout(heights = c(0.1, 1))
+
+# Final combination
+combined_trends <- dgcc_block | drsc_block
+
+# Optional overall annotation
+combined_trends <- combined_trends +
+  plot_annotation(
+    theme = theme(
+      plot.title = element_text(size = 14, face = "bold"),
+      plot.subtitle = element_text(size = 10)
+    )
+  )
+
+# Display
+combined_trends
+
+
+
+
+```
+
+```{r}
+#| message: false
+#| echo: false
+#| warning: false
+#| paged-print: false
+#| fig-height: 9
+#| fig-width: 10
+#| fig-align: left
+#| fig-cap: "**Figure 2. Latent trajectories of observed mean glycaemic control and diabetic retinopathy screening coverage across Chilean municipalities.** The left column presents plots for glycaemic control (HbA1c < 7%), and the right column for annual DR screening. The plots at the top are based on data from 2011 to 2023, while those below use data restricted to the 2011–2019 period. Each panel displays average annual coverage with 95% confidence intervals, stratified by latent classes identified through longitudinal mixture modeling. The dashed red line indicates the 80% coverage threshold used as a policy benchmark. Municipalities in the lowest quintile of diabetes coverage were excluded from the analysis."
+
+model_titles <- c(
+  "5class_cubic_nre_dgcc_model_2011_2023" = "Five-class model in Model D structure for glycaemic control coverage (2011–2023)",
+  "4class_quadratic_nre_dgcc_model_2011_2019" = "Four-class model in Model D structure for glycaemic control coverage (2011–2019)",
+  "4class_cubic_nre_drsc_model_2011_2023" = "Four-class model in Model D structure for DR screening coverage (2011–2023)",
+  "4class_quadratic_random_effects_prop_drsc_model_2011_2019" = "Four-class model with proportional random effects in Model D structure for DR screening coverage (2011–2019)"
 )
+
+
+
+# Combine plots with titles inline
+combined_plot <- (
+  dgcc_title / (plot_list[[1]] | plot_list[[2]]) /
+    drsc_title / (plot_list[[3]] | plot_list[[4]])
+) +
+  plot_layout(heights = c(0.1, 1, 0.1, 1)) +
+  plot_annotation(
+    #title = "Latent trajectory classes of DGCC and DRSC over two study periods",
+    #subtitle = "Average annual coverage with 95% confidence intervals",
+    theme = theme(plot.title = element_text(size = 14, face = "bold", hjust = 0))
+  )
+
+# Print
+combined_plot
+
+
+
+```
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| paged-print: false
+#| fig-height: 12
+#| fig-width: 10
+
+
+individual_trajectories_plots <- map2(
+  all_merged_df[model_names_to_plot],
+  model_names_to_plot,
+  ~ {
+    df <- .x
+    model_name <- .y
+
+    outcome_var <- unique(df$outcome_var)
+    trajectory_vector <- trajectory_labels[[model_name]]
+
+    class_order <- df %>%
+      group_by(class) %>%
+      dplyr::summarise(mean_val = mean(.data[[outcome_var]], na.rm = TRUE), .groups = "drop") %>%
+      arrange(mean_val) %>%
+      mutate(class_order = row_number())
+
+    label_df <- df %>%
+      distinct(id, class) %>%
+      left_join(class_order, by = "class") %>%
+      group_by(class_order) %>%
+      dplyr::summarise(n = n(), .groups = "drop") %>%
+      mutate(
+        percentage = n / sum(n),
+        label = paste0(trajectory_vector, " (", percent(percentage, accuracy = 0.1), ")"),
+        class = class_order
+      ) %>%
+      arrange(class)
+
+    df <- df %>%
+      left_join(class_order, by = "class") %>%
+      mutate(class = class_order) %>%
+      left_join(label_df, by = "class") %>%
+      mutate(label = factor(label, levels = label_df$label))
+
+    y_axis_label <- if (outcome_var == "dgcc") {
+      "Proportion of T2DM individuals with HbA1C < 7%"
+    } else {
+      "Proportion of T2DM individuals with annual DR screening"
+    }
+
+    ggplot(df, aes(x = year, y = .data[[outcome_var]], group = id, color = label)) +
+      geom_line(alpha = 0.15, linewidth = 0.3) +
+      stat_summary(fun = mean, geom = "line", aes(group = label), linewidth = 0.9) +
+      facet_wrap(~ label, nrow = 1, strip.position = "top") +
+      scale_color_lancet() +
+      scale_y_continuous(limits = c(0, 1), labels = percent) +
+      scale_x_continuous(breaks = seq(1, 13, by = 2), labels = seq(2011, 2023, by = 2)) +
+      labs(
+        title = model_titles[[model_name]],
+        x = "Year",
+        y = y_axis_label,
+        color = "Latent class"
+      ) +
+      theme_minimal(base_size = 10) +
+      theme(
+        strip.text = element_text(size = 8, face = "bold"),
+        strip.placement = "outside",
+        plot.title = element_text(size = 10, face = "bold", hjust = 0),
+        axis.text = element_text(size = 7),
+        axis.title = element_text(size = 8.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.position = "none"
+      )
+  }
+)
+
+individual_trajectories_panel <- wrap_plots(individual_trajectories_plots, ncol = 1) +
+  plot_annotation(
+    title = "Raw individual trajectories by latent class (ordered within model)",
+    subtitle = "Each facet uses model-specific class ordering and consistent color palette",
+    theme = theme(
+      plot.title = element_text(size = 13, face = "bold", hjust = 0),
+      plot.subtitle = element_text(size = 10, hjust = 0)
+    )
+  )
+
+# Mostrar
+individual_trajectories_panel
 
 
 
