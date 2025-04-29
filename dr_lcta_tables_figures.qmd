@@ -118,7 +118,6 @@ require(rcompanion)
 library(gridExtra)
 library(tidyLPA)
 library(MASS)
-library(broom)
 library(skimr)
 library(gtExtras)
 library(pander)
@@ -136,7 +135,8 @@ library(grid)
 library(rlang)
 library(lmtest)
 library(quarto)
-
+library(nnet)
+library(broom)
 
 
 ```
@@ -704,91 +704,167 @@ combined_plot
 #| echo: false
 #| message: false
 #| warning: false
-#| paged-print: false
-#| fig-height: 12
-#| fig-width: 10
 
 
-individual_trajectories_plots <- map2(
-  all_merged_df[model_names_to_plot],
-  model_names_to_plot,
-  ~ {
-    df <- .x
-    model_name <- .y
-
-    outcome_var <- unique(df$outcome_var)
-    trajectory_vector <- trajectory_labels[[model_name]]
-
-    class_order <- df %>%
-      group_by(class) %>%
-      dplyr::summarise(mean_val = mean(.data[[outcome_var]], na.rm = TRUE), .groups = "drop") %>%
-      arrange(mean_val) %>%
-      mutate(class_order = row_number())
-
-    label_df <- df %>%
-      distinct(id, class) %>%
-      left_join(class_order, by = "class") %>%
-      group_by(class_order) %>%
-      dplyr::summarise(n = n(), .groups = "drop") %>%
-      mutate(
-        percentage = n / sum(n),
-        label = paste0(trajectory_vector, " (", percent(percentage, accuracy = 0.1), ")"),
-        class = class_order
-      ) %>%
-      arrange(class)
-
-    df <- df %>%
-      left_join(class_order, by = "class") %>%
-      mutate(class = class_order) %>%
-      left_join(label_df, by = "class") %>%
-      mutate(label = factor(label, levels = label_df$label))
-
-    y_axis_label <- if (outcome_var == "dgcc") {
-      "Proportion of T2DM individuals with HbA1C < 7%"
-    } else {
-      "Proportion of T2DM individuals with annual DR screening"
-    }
-
-    ggplot(df, aes(x = year, y = .data[[outcome_var]], group = id, color = label)) +
-      geom_line(alpha = 0.15, linewidth = 0.3) +
-      stat_summary(fun = mean, geom = "line", aes(group = label), linewidth = 0.9) +
-      facet_wrap(~ label, nrow = 1, strip.position = "top") +
-      scale_color_lancet() +
-      scale_y_continuous(limits = c(0, 1), labels = percent) +
-      scale_x_continuous(breaks = seq(1, 13, by = 2), labels = seq(2011, 2023, by = 2)) +
-      labs(
-        title = model_titles[[model_name]],
-        x = "Year",
-        y = y_axis_label,
-        color = "Latent class"
-      ) +
-      theme_minimal(base_size = 10) +
-      theme(
-        strip.text = element_text(size = 8, face = "bold"),
-        strip.placement = "outside",
-        plot.title = element_text(size = 10, face = "bold", hjust = 0),
-        axis.text = element_text(size = 7),
-        axis.title = element_text(size = 8.5),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        legend.position = "none"
-      )
-  }
-)
-
-individual_trajectories_panel <- wrap_plots(individual_trajectories_plots, ncol = 1) +
-  plot_annotation(
-    title = "Raw individual trajectories by latent class (ordered within model)",
-    subtitle = "Each facet uses model-specific class ordering and consistent color palette",
-    theme = theme(
-      plot.title = element_text(size = 13, face = "bold", hjust = 0),
-      plot.subtitle = element_text(size = 10, hjust = 0)
-    )
+# 📂 1. Cargar datos
+coverage_data <- read_csv("coverage_2011_2023_noq1.csv")
+all_named_models <- readRDS("all_named_models.rds")
+demographics <- read_csv("demographics.csv") %>%
+  mutate(
+    deprivation_index = index_standardized,
+    urbanisation_classification = factor(urbanisation_classification, levels = c("Urbana", "Mixta", "Rural")),
+    zona = factor(zona, levels = c("centro", "norte", "sur"))
+  ) %>% 
+  select(comuna, deprivation_index, urbanisation_classification, zona) %>% 
+  drop_na() 
+# ─────────────────────────────────────────────────────────────────────
+# 🗂️ 2. Preprocesar datos
+coverage_data <- coverage_data %>%
+  arrange(comuna2, ano) %>%
+  mutate(
+    year = ano - min(ano) + 1,
+    id = comuna2,
+    drsc = drs_coverage,
+    dgcc = dm_coverage
   )
 
-# Mostrar
-individual_trajectories_panel
+# Definir periodos
+periods <- list(
+  "2011_2023" = 1:13,
+  "2011_2019" = 1:9
+)
+
+# Asignar coverage_data a modelos
+for (model_name in names(all_named_models)) {
+  period_name <- ifelse(grepl("2011_2023", model_name), "2011_2023", "2011_2019")
+  all_named_models[[model_name]]$call$data <- coverage_data %>% filter(year %in% periods[[period_name]])
+}
+
+# ─────────────────────────────────────────────────────────────────────
+# 📋 3. Preparar merged_df de cada modelo
+all_merged_df <- list()
+
+for (model_name in names(all_named_models)) {
+  model <- all_named_models[[model_name]]
+  
+  if (!is.null(model$call$data) && !is.null(model$pred) && !is.null(model$pprob)) {
+    model_data <- model$call$data %>%
+      group_by(id) %>%
+      mutate(row_id = row_number()) %>%
+      ungroup()
+    
+    pred_df <- model$pred %>%
+      group_by(id) %>%
+      mutate(row_id = row_number()) %>%
+      ungroup()
+    
+    merged_df <- left_join(model_data, pred_df, by = c("id", "row_id")) %>%
+      left_join(model$pprob, by = "id") %>%
+      filter(!is.na(class))
+    
+    outcome_var <- ifelse(grepl("drsc", model_name), "drsc", "dgcc")
+    
+    class_order <- merged_df %>%
+      group_by(class) %>%
+      dplyr::summarise(mean_value = mean(.data[[outcome_var]], na.rm = TRUE), .groups = "drop") %>%
+      arrange(mean_value) %>%
+      mutate(class_order = row_number())
+    
+    merged_df <- merged_df %>%
+      left_join(class_order, by = "class") %>%
+      mutate(class = class_order) %>%
+      select(-class_order)
+    
+    all_merged_df[[model_name]] <- merged_df
+  }
+}
+
+# Escoge uno de los modelos que quieras usar para construir la tabla descriptiva
+model_name_to_use <- "5class_cubic_nre_dgcc_model_2011_2023"
+
+df <- all_merged_df[[model_name_to_use]] %>%
+  distinct(comuna, class) %>%
+  left_join(demographics, by = "comuna")  # Asegúrate que matchée correctamente
+
+# Ajustar formato para tabla
+df <- df %>%
+  mutate(class = as.factor(class))
+
+library(gtsummary)
+library(dplyr)
+library(nnet)  # para multinom()
+
+# Paso 1: crear modelo multinomial completo
+model_multinom <- multinom(class ~ deprivation_index + urbanisation_classification + zona, data = df, trace = FALSE)
+
+# Paso 2: calcular p-values manualmente con Likelihood Ratio Test (LRT)
+covariates <- c("deprivation_index", "urbanisation_classification", "zona")
+p_values_table <- data.frame(variable = character(), p.value = numeric())
+
+for (var in covariates) {
+  reduced_formula <- as.formula(
+    paste("class ~", paste(setdiff(covariates, var), collapse = " + "))
+  )
+  reduced_model <- multinom(reduced_formula, data = df, trace = FALSE)
+  
+  ll_full <- logLik(model_multinom)
+  ll_reduced <- logLik(reduced_model)
+  
+  LRT_stat <- 2 * (as.numeric(ll_full) - as.numeric(ll_reduced))
+  df_diff <- attr(ll_full, "df") - attr(ll_reduced, "df")
+  
+  p_val <- pchisq(LRT_stat, df = df_diff, lower.tail = FALSE)
+  
+  p_values_table <- rbind(p_values_table, data.frame(variable = var, p.value = p_val))
+}
 
 
 
+# Paso 1: crear tabla descriptiva
+descriptive_table <- df %>%
+  select(class, all_of(c("deprivation_index", "urbanisation_classification", "zona"))) %>%
+  tbl_summary(
+    by = class,
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{median} ({p25}, {p75})"
+    ),
+    missing = "no",
+    percent = "column"
+  ) %>%
+  modify_caption("**Table 1. Membership in each latent class group according to key demographics**") %>%
+  bold_labels()
+
+# Paso 1: Filtrar solo la fila principal por variable (es decir, row_type == "label") y unir con p-values
+
+descriptive_table$table_body <- p_values_table %>% 
+  dplyr::rename(label = variable) %>% 
+  right_join(descriptive_table$table_body, by ="label") %>% 
+  select(-p.value, everything(), p.value) %>% 
+  arrange(variable) 
+  
+descriptive_table$table_body %>% 
+  select(-variable, -var_type,	-row_type,	-var_label) %>% 
+  dplyr::rename("Consistently lower" =stat_1, 
+         "Stable medium"= stat_2, 
+         "Stable upper medium" =stat_3, 
+         "Deteriorating" = stat_4, 
+         "Highest" = stat_5, 
+         "p-value"= p.value) %>% 
+gt() %>%
+  tab_options(
+    table.font.size = 10,
+    data_row.padding = px(0),
+    table.border.top.color = "black",
+    heading.border.bottom.color = "black",
+    row_group.border.top.color = "black",
+    row_group.border.bottom.color = "white",
+    table.border.bottom.color = "white",
+    column_labels.border.top.color = "black",
+    column_labels.border.bottom.color = "black",
+    table_body.border.bottom.color = "black",
+    table_body.hlines.color = "white"
+  )  %>% 
+  tab_header(
+    title = md("**Supplementary Table S9. Membership in each latent class group according to key demographicst**"))
 ```

@@ -32,7 +32,7 @@ prefer-html: true
 date: 'last-modified'
 execute:
   echo: false
-  warning: true
+  warning: false
   error: true
   cache: false
 ---
@@ -92,6 +92,7 @@ library(rlang)
 library(lmtest)
 library(quarto)
 library(Hmisc)
+library(nnet)
 
 
 
@@ -649,7 +650,7 @@ plot_group_grid(plots, outcome = "drsc", period = "2011_2023")
 #| warning: false
 #| fig-height: 14
 #| fig-width: 10
-#| fig-cap: "Figure S4. Latent class selection plots for DRSC (2011–2023)"
+#| fig-cap: "Figure S5. Latent class selection plots for DRSC (2011–2023)"
 
 # Reordenar y plotear
 plot_group_grid(plots, outcome = "drsc", period = "2011_2019")
@@ -882,6 +883,8 @@ selected_models <- c(
 #| warning: false
 #| fig-width: 10
 #| fig-height: 12
+#| fig-cap: "Figure S6. Latent class selection plots for DRSC (2011–2023)"
+
 
 # 📂 Cargar el archivo de modelos
 all_named_models <- readRDS("all_named_models.rds")
@@ -1196,6 +1199,306 @@ combined_plot <- (
 
 combined_plot
 
+
+
+```
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| paged-print: false
+
+
+# 📂 1. Cargar datos
+coverage_data <- read_csv("coverage_2011_2023_noq1.csv")
+all_named_models <- readRDS("all_named_models.rds")
+demographics <- read_csv("demographics.csv") %>%
+   mutate(
+    deprivation_index = index_standardized,
+    urbanisation_classification = factor(urbanisation_classification, levels = c("Urbana", "Mixta", "Rural")),
+    zona = factor(zona, levels = c("centro", "norte", "sur"))
+  ) %>% 
+  select(comuna, deprivation_index, urbanisation_classification, zona) %>% 
+  drop_na() 
+# ─────────────────────────────────────────────────────────────────────
+# 🗂️ 2. Preprocesar datos
+coverage_data <- coverage_data %>%
+  arrange(comuna2, ano) %>%
+  mutate(
+    year = ano - min(ano) + 1,
+    id = comuna2,
+    drsc = drs_coverage,
+    dgcc = dm_coverage
+  )
+
+# Definir periodos
+periods <- list(
+  "2011_2023" = 1:13,
+  "2011_2019" = 1:9
+)
+
+# Asignar coverage_data a modelos
+for (model_name in names(all_named_models)) {
+  period_name <- ifelse(grepl("2011_2023", model_name), "2011_2023", "2011_2019")
+  all_named_models[[model_name]]$call$data <- coverage_data %>% filter(year %in% periods[[period_name]])
+}
+
+# ─────────────────────────────────────────────────────────────────────
+# 📋 3. Preparar merged_df de cada modelo
+all_merged_df <- list()
+
+for (model_name in names(all_named_models)) {
+  model <- all_named_models[[model_name]]
+  
+  if (!is.null(model$call$data) && !is.null(model$pred) && !is.null(model$pprob)) {
+    model_data <- model$call$data %>%
+      group_by(id) %>%
+      mutate(row_id = row_number()) %>%
+      ungroup()
+    
+    pred_df <- model$pred %>%
+      group_by(id) %>%
+      mutate(row_id = row_number()) %>%
+      ungroup()
+    
+    merged_df <- left_join(model_data, pred_df, by = c("id", "row_id")) %>%
+      left_join(model$pprob, by = "id") %>%
+      filter(!is.na(class))
+    
+    outcome_var <- ifelse(grepl("drsc", model_name), "drsc", "dgcc")
+    
+    class_order <- merged_df %>%
+      group_by(class) %>%
+      dplyr::summarise(mean_value = mean(.data[[outcome_var]], na.rm = TRUE), .groups = "drop") %>%
+      arrange(mean_value) %>%
+      mutate(class_order = row_number())
+    
+    merged_df <- merged_df %>%
+      left_join(class_order, by = "class") %>%
+      mutate(class = class_order) %>%
+      select(-class_order)
+    
+    all_merged_df[[model_name]] <- merged_df
+  }
+}
+
+# ─────────────────────────────────────────────────────────────────────
+# 🧮 4. Regresiones multinomiales
+id_to_comuna <- demographics %>%
+  mutate(id = row_number()) %>%
+  select(id, comuna)
+
+regression_results <- list()
+
+for (model_name in names(all_merged_df)) {
+  
+  df <- all_merged_df[[model_name]] %>%
+    distinct(id, class) %>%
+    left_join(id_to_comuna, by = "id") %>%
+    left_join(demographics, by = "comuna")
+  
+  df$class <- as.factor(df$class)
+  
+  df$class <- relevel(df$class, ref = as.character(max(as.numeric(as.character(df$class)))))
+  
+  if (n_distinct(df$class) < 2) {
+    cat("⚠️ Model skipped (only one class):", model_name, "\n")
+    next
+  }
+  
+model_multinom <- suppressWarnings(
+  suppressMessages(
+    {
+      tmp <- capture.output(
+        model <- nnet::multinom(class ~ deprivation_index + urbanisation_classification + zona, data = df)
+      )
+      model
+    }
+  )
+)
+
+  tidy_model <- broom::tidy(model_multinom, exponentiate = TRUE, conf.int = TRUE)
+  
+  tidy_model$model_name <- model_name
+  
+  regression_results[[model_name]] <- tidy_model
+}
+
+# 5. Limpiar nombres (ya lo tienes)
+final_regression_table <- bind_rows(regression_results)
+
+# 🔵 FALTA: Crear columna RRR_CI antes de pivot_wider
+final_regression_table <- final_regression_table %>%
+  mutate(
+    RRR_CI = paste0(
+      round(estimate, 2), 
+      " [", round(conf.low, 2), ", ", round(conf.high, 2), "]"
+    )
+  )
+
+# 🔵 Ahora sigue normal:
+
+
+
+# ─────────────────────────────────────────────────────────────────────
+# ✨ 5. Limpieza de nombres
+clean_term_labels <- function(df) {
+  df %>%
+    mutate(term = case_when(
+      term == "deprivation_index" ~ "Deprivation Index (continuous)",
+      term == "urbanisation_classificationMixta" ~ "Mixta (Ref: Urbana)",
+      term == "urbanisation_classificationRural" ~ "Rural (Ref: Urbana)",
+      term == "zonanorte" ~ "Norte (Ref: Centro)",
+      term == "zonasur" ~ "Sur (Ref: Centro)",
+      term == "(Intercept)" ~ "(Intercept)",
+      TRUE ~ term
+    ))
+}
+
+final_regression_table <- clean_term_labels(final_regression_table)
+# ─────────────────────────────────────────────────────────────────────
+# 🛠️ 6. Funciones para generar tablas
+
+trajectory_labels <- list(
+  `5class_cubic_nre_dgcc_model_2011_2023` = c("Consistently lower", "Stable medium", "Stable upper medium", "Deteriorating", "Highest"),
+  `4class_quadratic_nre_dgcc_model_2011_2019` = c("Consistently lower", "Stable medium", "Stable upper medium", "Highest"),
+  `4class_cubic_nre_drsc_model_2011_2023` = c("Consistently low", "Stable medium", "Increasing", "Highest decreasing"),
+  `4class_quadratic_random_effects_prop_drsc_model_2011_2019` = c("Consistently low", "Stable medium", "Recovering", "Highest")
+)
+
+create_clean_table <- function(df, model_name) {
+  # Check if the model has more than one class
+  if (length(unique(df$y.level)) <= 1) {
+    warning(paste("Model skipped (only one class):", model_name))
+    return(NULL)  # Skip this model
+  }
+  
+  labels <- trajectory_labels[[model_name]]
+  
+  df_model <- df %>%
+    filter(model_name == !!model_name) %>%
+    mutate(
+      trajectory = factor(y.level, levels = seq_along(labels), labels = labels)
+    ) %>%
+    select(term, trajectory, RRR_CI) %>%
+    pivot_wider(names_from = trajectory, values_from = RRR_CI)
+  
+  # Mark the last class (reference) as "Ref"
+  reference_label <- tail(labels, 1)
+  if (!(reference_label %in% names(df_model))) {
+    df_model[[reference_label]] <- NA
+  }
+  df_model <- df_model %>%
+    mutate(across(all_of(reference_label), ~ ifelse(is.na(.x), "Ref", .x)))
+
+  df_model <- clean_term_labels(df_model)
+  
+  return(df_model)
+}
+
+
+
+add_reference_rows <- function(table) {
+  
+  class_cols <- names(table)[names(table) != "term"]
+  
+  ref_rows <- tibble(
+    term = c("Urbana (Ref)", "Centro (Ref)")
+  )
+  
+  for (col in class_cols) {
+    ref_rows[[col]] <- "Ref"
+  }
+  
+  final_table <- bind_rows(table, ref_rows) %>%
+    arrange(factor(term, levels = c(
+      "(Intercept)",
+      "Deprivation Index (continuous)",
+      "Mixta (Ref: Urbana)", "Rural (Ref: Urbana)", "Urbana (Ref)", 
+      "Norte (Ref: Centro)", "Sur (Ref: Centro)", "Centro (Ref)"
+    )))
+  
+  return(final_table)
+}
+
+# ─────────────────────────────────────────────────────────────────────
+# 📊 7. Crear tablas finales
+final_table_5class_dgcc <- create_clean_table(final_regression_table, "5class_cubic_nre_dgcc_model_2011_2023") %>% add_reference_rows()
+final_table_4class_dgcc <- create_clean_table(final_regression_table, "4class_quadratic_nre_dgcc_model_2011_2019") %>% add_reference_rows()
+final_table_4class_drsc <- create_clean_table(final_regression_table, "4class_cubic_nre_drsc_model_2011_2023") %>% add_reference_rows()
+final_table_4class_drsc_re <- create_clean_table(final_regression_table, "4class_quadratic_random_effects_prop_drsc_model_2011_2019") %>% add_reference_rows()
+
+final_table_5class_dgcc %>% gt() %>%
+  tab_options(
+    table.font.size = 10,
+    data_row.padding = px(0),
+    table.border.top.color = "black",
+    heading.border.bottom.color = "black",
+    row_group.border.top.color = "black",
+    row_group.border.bottom.color = "white",
+    table.border.bottom.color = "white",
+    column_labels.border.top.color = "black",
+    column_labels.border.bottom.color = "black",
+    table_body.border.bottom.color = "black",
+    table_body.hlines.color = "white"
+  )  %>% 
+  tab_header(
+    title = md("**Supplementary Table S5. Reporting of latent growth modeling approach using the GRoLTS checklist**")
+  )
+
+final_table_4class_dgcc %>% gt() %>%
+  tab_options(
+    table.font.size = 10,
+    data_row.padding = px(0),
+    table.border.top.color = "black",
+    heading.border.bottom.color = "black",
+    row_group.border.top.color = "black",
+    row_group.border.bottom.color = "white",
+    table.border.bottom.color = "white",
+    column_labels.border.top.color = "black",
+    column_labels.border.bottom.color = "black",
+    table_body.border.bottom.color = "black",
+    table_body.hlines.color = "white"
+  )  %>% 
+  tab_header(
+    title = md("**Supplementary Table S5. Reporting of latent growth modeling approach using the GRoLTS checklist**"))
+    
+  final_table_4class_drsc %>% gt() %>%
+  tab_options(
+    table.font.size = 10,
+    data_row.padding = px(0),
+    table.border.top.color = "black",
+    heading.border.bottom.color = "black",
+    row_group.border.top.color = "black",
+    row_group.border.bottom.color = "white",
+    table.border.bottom.color = "white",
+    column_labels.border.top.color = "black",
+    column_labels.border.bottom.color = "black",
+    table_body.border.bottom.color = "black",
+    table_body.hlines.color = "white"
+  )  %>% 
+  tab_header(
+    title = md("**Supplementary Table S5. Reporting of latent growth modeling approach using the GRoLTS checklist**"))
+    
+  final_table_4class_drsc_re %>% gt() %>%
+  tab_options(
+    table.font.size = 10,
+    data_row.padding = px(0),
+    table.border.top.color = "black",
+    heading.border.bottom.color = "black",
+    row_group.border.top.color = "black",
+    row_group.border.bottom.color = "white",
+    table.border.bottom.color = "white",
+    column_labels.border.top.color = "black",
+    column_labels.border.bottom.color = "black",
+    table_body.border.bottom.color = "black",
+    table_body.hlines.color = "white"
+  )  %>% 
+  tab_header(
+    title = md("**Supplementary Table S5. Reporting of latent growth modeling approach using the GRoLTS checklist**"))
+    
+    
 
 
 ```

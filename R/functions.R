@@ -135,7 +135,6 @@ coverage_2011_2023 <- coverage_2011_2023 %>%
 
 
 
-
 #Categorise dm quintiles -------------------------------------------------
 
 coverage_2011_2023_noq1 <- coverage_2011_2023 %>%
@@ -145,8 +144,9 @@ coverage_2011_2023_noq1 <- coverage_2011_2023 %>%
                                    labels = c("Q1", "Q2", "Q3", "Q4", "Q5"),
                                    include.lowest = TRUE))
 
-
-coverage_2011_2023 %>%
+  
+  
+  coverage_2011_2023 %>%
   ungroup() %>% 
   mutate(quintil_dm_category = cut(dm,
                                    breaks = quantile(dm, probs = c(0, 0.2, 0.4, 0.6, 0.8, 1), na.rm = TRUE),
@@ -179,16 +179,13 @@ coverage_2011_2023_noq1 <- coverage_2011_2023_noq1 %>%
   arrange(ano, comuna)
 
 
+
 isde <- read_excel("SocioEconominoSaludComunas.xlsx")
 
 isde <- isde[,c(2,4)]
 
 isde <- isde %>% 
-  dplyr::mutate(comuna = ...2,
-                index_standardized = scale(index)) %>% 
-  dplyr::select(comuna, index, index_standardized) %>% 
-  arrange(comuna)
-
+  dplyr::rename(comuna = ...2)
 
 coverage_isde <- coverage_2011_2023_noq1 %>% 
   mutate(ano2=match(ano, unique(ano)),
@@ -217,7 +214,18 @@ isde$comuna[isde$comuna =="San Juan de La Costa"] <- "San Juan de la Costa"
 
 coverage_isde[!(coverage_isde$comuna %in% isde$comuna), ] 
 
-coverage_2011_2023_noq1 <- right_join(coverage_isde, isde) 
+
+
+
+coverage_2011_2023_noq1 <- left_join(coverage_isde, isde) 
+
+
+coverage_2011_2023_noq1 <- coverage_2011_2023_noq1 %>% 
+  ungroup() %>% 
+  dplyr::mutate(index_standardized = scale(index)) %>% 
+  arrange(comuna)
+
+summary(coverage_2011_2023_noq1)
 
 coverage_2011_2023_noq1 <- coverage_2011_2023_noq1 %>% 
 mutate(zona = ifelse(zona == 1, 'norte', 
@@ -242,15 +250,18 @@ rurality[!(rurality$comuna %in% coverage_2011_2023_noq1$comuna), ]
 
 coverage_2011_2023_noq1[!(coverage_2011_2023_noq1$comuna %in% rurality$comuna), ] 
 
-coverage_2011_2023_noq1 <- right_join(coverage_2011_2023_noq1, rurality)
+coverage_2011_2023_noq1 <- left_join(coverage_2011_2023_noq1, rurality)
 
-coverage_2011_2023_noq1 <- coverage_2011_2023_noq1 %>% drop_na(mean_drs_coverage, mean_dm_coverage)
+#coverage_2011_2023_noq1 <- coverage_2011_2023_noq1 %>% drop_na(mean_drs_coverage, mean_dm_coverage)
 
 
 ## Save coverage.csv -------------------------------------------------------
 
 
 write.csv(coverage_2011_2023_noq1, "coverage_2011_2023_noq1.csv")
+
+# Load the .rds file
+
 
 
 # Read the CSV file and clean the data
@@ -504,3 +515,26 @@ all_models_by_period <- build_models_for_all_periods(coverage_data,
                              max_classes = 7,
                              variables = c("drsc", "dgcc"))
 
+
+
+
+
+linear_nre_homocedastic 
+linear_nre_heterocedastic 
+quadratic_nre 
+cubic_nre 
+linear_random_intercept 
+linear_random_intercept_slope 
+quadratic_random_effects 
+quadratic_random_effects_prop 
+cubic_random_effects 
+cubic_random_effects_prop
+
+
+ two outcomes: "drsc", "dgcc"
+
+ two periods: 2011_2023 and 2011_2019
+ 
+ 
+ 
+ class_linear_nre_homocedastic_drsc_model_2011_2023
