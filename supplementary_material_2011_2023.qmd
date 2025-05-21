@@ -239,8 +239,8 @@ gt(table_s2) %>%
 ```{r}
 #| label: Fig-S1
 #| fig-align: left
-#| fig-height: 11
 #| fig-width: 10
+#| fig-height: 7
 #| warning: false
 
 
@@ -353,11 +353,9 @@ extract_residual_data <- function(model, nameofoutcome, nameofage = "ano", data,
 # 5. Definir modelos y outcomes a graficar
 models_to_plot <- list(
   "DGCC 2011–2023" = all_named_models[["5class_linear_nre_homocedastic_dgcc_model_2011_2023"]],
-  "DGCC 2011–2019" = all_named_models[["4class_linear_nre_homocedastic_dgcc_model_2011_2019"]],
-  "DRSC 2011–2023" = all_named_models[["4class_linear_nre_homocedastic_drsc_model_2011_2023"]],
-  "DRSC 2011–2019" = all_named_models[["4class_linear_nre_homocedastic_drsc_model_2011_2019"]]
+  "DRSC 2011–2023" = all_named_models[["4class_linear_nre_homocedastic_drsc_model_2011_2023"]]
 )
-outcomes <- c("dgcc", "dgcc", "drsc", "drsc")
+outcomes <- c("dgcc","drsc")
 names(outcomes) <- names(models_to_plot)
 
 # 6. Extraer todos los datos de residuos
@@ -369,7 +367,7 @@ residual_data_all <- purrr::pmap_dfr(
 # 7. Preparar niveles de factores
 residual_data_all$class_label <- factor(residual_data_all$class_label, levels = paste("Class", 1:4))
 residual_data_all$model_label <- factor(residual_data_all$model_label, 
-                                        levels = c("DGCC 2011–2023", "DGCC 2011–2019", "DRSC 2011–2023", "DRSC 2011–2019"))
+                                        levels = c("DGCC 2011–2023","DRSC 2011–2023"))
 
 # 8. Función para plotear cada modelo
 plot_residual_block <- function(df, title) {
@@ -392,17 +390,13 @@ plot_residual_block <- function(df, title) {
 }
 
 # 9. Crear los bloques de plots
-plot_dgcc_2023 <- plot_residual_block(residual_data_all %>% filter(model_label == "DGCC 2011–2023"), "DGCC 2011–2023 – Structure A")
-plot_dgcc_2019 <- plot_residual_block(residual_data_all %>% filter(model_label == "DGCC 2011–2019"), "DGCC 2011–2019 – Structure A")
-plot_drsc_2023 <- plot_residual_block(residual_data_all %>% filter(model_label == "DRSC 2011–2023"), "DRSC 2011–2023 – Structure A")
-plot_drsc_2019 <- plot_residual_block(residual_data_all %>% filter(model_label == "DRSC 2011–2019"), "DRSC 2011–2019 – Structure A")
+plot_dgcc_2023 <- plot_residual_block(residual_data_all %>% filter(model_label == "DGCC 2011–2023"), "DGCC 2011–2023")
+plot_drsc_2023 <- plot_residual_block(residual_data_all %>% filter(model_label == "DRSC 2011–2023"), "DRSC 2011–2023")
 
 # 10. Combinar todos los gráficos con patchwork
 final_residual_plot <- (
   plot_dgcc_2023 /
-    plot_dgcc_2019 /
-    plot_drsc_2023 /
-    plot_drsc_2019
+    plot_drsc_2023 
 ) +  
   plot_annotation(
     title = "Supplementary Figure S1. Standardised residual plots by latent class under Model A",
@@ -426,7 +420,7 @@ Each figure presents model comparison panels used to guide latent class number s
 ```{r}
 #| message: false
 #| warning: false
-#| fig-height: 14
+#| fig-height: 4
 #| fig-width: 10
 #| fig-cap: "Figure S2. Latent class selection plots for DGCC (2011–2023)"
 
@@ -460,7 +454,7 @@ model_adequacy_table <- model_adequacy_table %>%
 
 
 filtered_df <- model_adequacy_table %>%
-  filter(!str_detect(Model, "2020_2023")) %>%
+  filter(str_detect(Model, "2011_2023")) %>%
   mutate(
     Structure = Model %>%
       str_replace("^[0-9]+class_", "") %>%
@@ -605,16 +599,16 @@ plot_group_grid <- function(plots, outcome, period) {
     
     grid.arrange(
       grobs = ordered_group,
-      ncol = 2,
-      nrow = 5,
+      ncol = 5,
+      nrow = 2,
       top = paste0(outcome, " ", period_pretty, " — Models A to J")
     )
   }
 }
 
 # ───── 9. Call the function for all desired groups ─────
-plot_group_grid(plots, outcome = "dgcc", period = "2011_2023")
 
+plot_group_grid(plots, outcome = "dgcc", period = "2011_2023") 
 
 
 
@@ -624,38 +618,11 @@ plot_group_grid(plots, outcome = "dgcc", period = "2011_2023")
 ```{r}
 #| message: false
 #| warning: false
-#| fig-height: 14
+#| fig-height: 4
 #| fig-width: 10
-#| fig-cap: "Figure S3. Latent class selection plots for DGCC (2011–2019)"
+#| fig-cap: "Figure S2. Latent class selection plots for DRSC (2011–2023)"
 
-# Reordenar y plotear
-plot_group_grid(plots, outcome = "dgcc", period = "2011_2019")
-
-
-
-```
-
-```{r}
-#| message: false
-#| warning: false
-#| fig-height: 14
-#| fig-width: 10
-#| fig-cap: "Figure S4. Latent class selection plots for DRSC (2011–2023)"
-#| 
-plot_group_grid(plots, outcome = "drsc", period = "2011_2023")
-
-
-```
-
-```{r}
-#| message: false
-#| warning: false
-#| fig-height: 14
-#| fig-width: 10
-#| fig-cap: "Figure S5. Latent class selection plots for DRSC (2011–2023)"
-
-# Reordenar y plotear
-plot_group_grid(plots, outcome = "drsc", period = "2011_2019")
+plot_group_grid(plots, outcome = "drsc", period = "2011_2023") 
 
 ```
 
@@ -762,6 +729,7 @@ model_adequacy_table %>%
   tab_source_note(source_note = md("**Abbreviations:** LCMM - Latent class mixture model; BIC - Bayesian information criterion; SCS - Smallest class size; APPA - Average posterior probability; MMV - Mismatch value; OCC - Odds of correct classification. * Model did not converge; BIC not reliable.")) %>% 
   tab_header(
     title = md("**Supplementary Table S3. Number of classes (K=1–7) using quadratic and cubic non random effects and quadratic radnom effects proportional structure Model F (proportional covariance structure) by gender**"))
+
 
 ```
 
@@ -884,7 +852,7 @@ selected_models <- c(
 #| message: false
 #| warning: false
 #| fig-width: 10
-#| fig-height: 12
+#| fig-height: 7
 #| fig-cap: "Figure S6. Latent class selection plots for DRSC (2011–2023)"
 
 
@@ -894,9 +862,9 @@ all_named_models <- readRDS("all_named_models.rds")
 # 📋 Definir cuáles modelos quieres graficar
 model_names_to_plot <- c(
   "5class_cubic_nre_dgcc_model_2011_2023",
-  "4class_quadratic_nre_dgcc_model_2011_2019",
-  "4class_cubic_nre_drsc_model_2011_2023",
-  "4class_quadratic_random_effects_prop_drsc_model_2011_2019"
+  #"4class_quadratic_nre_dgcc_model_2011_2019",
+  "4class_cubic_nre_drsc_model_2011_2023"#,
+ # "4class_quadratic_random_effects_prop_drsc_model_2011_2019"
 )
 
 # 🏷️ Etiquetas de las trayectorias
@@ -904,23 +872,23 @@ trajectory_labels <- list(
   `5class_cubic_nre_dgcc_model_2011_2023` = c(
     "Consistently lower", "Stable medium", "Stable upper medium", "Deteriorating", "Highest"
   ),
-  `4class_quadratic_nre_dgcc_model_2011_2019` = c(
-    "Consistently lower", "Stable medium", "Stable upper medium", "Highest"
-  ),
+ # `4class_quadratic_nre_dgcc_model_2011_2019` = c(
+ #   "Consistently lower", "Stable medium", "Stable upper medium", "Highest"
+ # ),
   `4class_cubic_nre_drsc_model_2011_2023` = c(
     "Consistently low", "Stable medium", "Increasing", "Highest decreasing"
-  ),
-  `4class_quadratic_random_effects_prop_drsc_model_2011_2019` = c(
-    "Consistently low", "Stable medium", "Recovering", "Highest"
-  )
+  )#,
+  #`4class_quadratic_random_effects_prop_drsc_model_2011_2019` = c(
+  #  "Consistently low", "Stable medium", "Recovering", "Highest"
+  #)
 )
 
 # 🏷️ Títulos de los modelos
 model_titles <- c(
   "5class_cubic_nre_dgcc_model_2011_2023" = "Five-class model for glycaemic control (2011–2023)",
-  "4class_quadratic_nre_dgcc_model_2011_2019" = "Four-class model for glycaemic control (2011–2019)",
-  "4class_cubic_nre_drsc_model_2011_2023" = "Four-class model for DR screening (2011–2023)",
-  "4class_quadratic_random_effects_prop_drsc_model_2011_2019" = "Four-class model for DR screening (2011–2019)"
+  #"4class_quadratic_nre_dgcc_model_2011_2019" = "Four-class model for glycaemic control (2011–2019)",
+  "4class_cubic_nre_drsc_model_2011_2023" = "Four-class model for DR screening (2011–2023)"#,
+  #"4class_quadratic_random_effects_prop_drsc_model_2011_2019" = "Four-class model for DR screening (2011–2019)"
 )
 
 # ⚙️ Crear los gráficos
