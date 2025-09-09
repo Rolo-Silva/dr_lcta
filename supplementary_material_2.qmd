@@ -1,0 +1,2023 @@
+---
+title: "A latent trajectory analysis in glycemic control and diabetic retinopathy screening coverage 2011-2023: A municipality-level study"
+subtitle: Supplementary Material
+editor: visual
+tbl-cap-location: top
+#number-sections: true
+format:
+  html:
+    toc: true
+    toc_float: true
+    toc_depth: 2
+    number_sections: true
+    code_folding: hide
+    theme: readable
+  pdf:
+    number-sections: true
+    colorlinks: true
+    keeptex: true
+    include-in-header: 
+      text: |
+        \usepackage{booktabs}
+        \usepackage{siunitx}
+        \newcolumntype{d}{S[
+            input-open-uncertainty=,
+            input-close-uncertainty=,
+            parse-numbers = false,
+            table-align-text-pre=false,
+            table-align-text-post=false
+         ]}
+  docx: default
+prefer-html: true
+date: 'last-modified'
+execute:
+  echo: false
+  warning: false
+  error: true
+  cache: true
+---
+
+```{r}
+#| echo: false
+#| warning: false
+
+# 📚 Load required libraries
+library(readr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(stringr)
+library(purrr)
+library(patchwork)
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+library(ggtext)
+library(Cairo)
+library(extrafont)
+library(hrbrthemes)
+library(directlabels)
+library(ggrepel)
+library(readxl)
+library(scales)
+library(ggsci)
+library(lcmm)
+library(MixAll)
+library(kml)
+library(traj)
+library(lmerTest)
+library(plyr)
+library(psych)
+library(fpc)
+library(mclust)
+library(rcompanion)
+library(gridExtra)
+library(tidyLPA)
+library(MASS)
+library(broom)
+library(skimr)
+library(gtExtras)
+library(pander)
+library(BayesFactor)
+library(modelsummary)
+library(gt)
+library(gtsummary)
+library(survival)
+library(xtable)
+library(htmltools)
+library(tibble)
+library(LCTMtools)
+library(grid)
+library(rlang)
+library(lmtest)
+library(quarto)
+library(Hmisc)
+library(nnet)
+library(stats)
+
+
+
+options(scipen=10000000)
+```
+
+**Rolando Silva-Jorquera^1^, Kasim Allel^2^, Hassan Haghparast-Bidgoli^1^, Paul Nderitu^3^, Claudio Zett^4^, Abraham Olvera-Barrios^5,6^, Alasdair Warwick^5,6,7^**
+
+^1^Institute for Global Health, University College London, UK.
+
+^2^Nuffield Department of Population Health, University of Oxford, UK
+
+^3^Faculty of Life Sciences and Medicine, King’s College London, UK
+
+^4^Pontificia Universidad Católica de Valparaíso, Chile
+
+^5^NIHR Biomedical Research Centre at Moorfields Eye Hospital NHS Foundation Trust
+
+^6^Institute of Ophthalmology, University College London, UK
+
+^7^Institute of Cardiovascular Science, University College London, UK
+
+------------------------------------------------------------------------
+
+```{r}
+#| message: false
+#| warning: false
+#| tbl-align: left
+
+
+structure_table <- data.frame(
+  Model = LETTERS[1:10],
+  Description = c(
+    "Linear without random effects with equal variances",
+    "Linear without random effects with varying variances",
+    "Quadratic without random effects",
+    "Cubic without random effects",
+    "Linear with random intercept",
+    "Linear with random intercept and slope",
+    "Quadratic with random intercept and slope",
+    "Quadratic with random intercept and slope and proportional variance",
+    "Cubic with random intercept and slope",
+    "Cubic with random intercept and slope and proportional variance"
+  ),
+  Interpretation = c(
+    "Captures linear trends assuming constant variance across latent classes and no individual-level variability.",
+    "Captures linear trends allowing class-specific variances, without accounting for individual-level random effects.",
+    "Captures curvilinear (quadratic) trajectories with fixed effects only and shared variance structure.",
+    "Captures complex nonlinear (cubic) fixed trends without random effects or variance heterogeneity.",
+    "Allows individuals to vary in their baseline levels (intercepts) while modeling linear overall trends.",
+    "Accounts for both baseline and slope variability across individuals in modeling linear trends.",
+    "Models quadratic trajectories with random effects on both intercept and slope, allowing individual variation.",
+    "Same as previous, but allows proportional variance differences across latent classes for more flexibility.",
+    "Captures complex cubic trends while accounting for individual variation in intercepts and slopes.",
+    "Extends the cubic random effects model by allowing class-specific proportional variance structures."
+  ),
+  stringsAsFactors = FALSE
+)
+
+# View table
+structure_table %>% 
+  gt::gt() %>%
+  tab_header(
+    title = md("**Supplementary Table S1. Description of the 10 candidate model structures tested in the LCMM analysis**")) %>% 
+  tab_options(
+    table.font.size = 10,
+    data_row.padding = px(1),
+    table.border.top.color = "black",
+    heading.border.bottom.color = "black",
+    row_group.border.top.color = "black",
+    row_group.border.bottom.color = "white",
+    table.border.bottom.color = "white",
+    column_labels.border.top.color = "black",
+    column_labels.border.bottom.color = "black",
+    table_body.border.bottom.color = "black",
+    table_body.hlines.color = "white") %>% 
+  tab_source_note(source_note = md(" **Note:** Each model structure was applied across multiple class solutions (1–7 classes) and evaluated using BIC, classification adequacy, and visual interpretability to identify optimal specifications for each outcome and period."))
+
+
+```
+
+```{r}
+#| message: false
+#| warning: false
+#| tbl-align: left
+
+
+table_s2 <- tibble::tibble(
+  Tool = c(
+    "Model Structure",
+    "BIC, AIC, LRT",
+    "APPA",
+    "Odds of Correct Classification (OCC)",
+    "Mismatch",
+    "Entropy",
+    "Relative Entropy",
+    "Degrees of Separation",
+    "Envelope of Residuals"
+  ),
+  `Criteria for a good model` = c(
+    "—",
+    "Lowest BIC/AIC",
+    "> 0.70 for each class",
+    "> 5.0 for each class",
+    "Close to 0",
+    "Close to 0",
+    "Close to 1 (> 6.0 recommended)",
+    "Higher = more separation",
+    "Parallel and narrow boundaries"
+  ),
+  Description = c(
+    "COVERAGE_itk = β₀ᵏ + β₁ᵏ·YEAR_it + β₂ᵏ·YEAR_it² + b₀ᵏ + b₁ᵏ·YEAR_it + b₂ᵏ·YEAR_it² + εₜ (Eq. 1)\n→ β: fixed effects; b: random effects; εₜ: error term.\nPr(i in class k) = exp(π_k) / Σ exp(π_l) (Eq. 2)\n→ π_k: class-specific membership parameter.",
+    "Likelihood-based tools to evaluate model parsimony and fit.",
+    "Average Posterior Probability Assignment;\nmeasures certainty of class membership.",
+    "OCC = OCC = (πg * (1 - pg)) / (pg * (1 - πg)) — compares expected vs. actual class membership.",
+    "Mismatch = Mismatch = πg - ng/N — difference between predicted and assigned class size.",
+    "Entropy = Entropy = – Σi Σg (pig * log(pig)) — global uncertainty across posterior probabilities.",
+    "Relative Entropy = 1 – (E / (G * log G)) — standardized measure of classification uncertainty.",
+    "Weighted Mahalanobis distance between predicted class means;\nhigher = more distinct classes.",
+    "Residual bounds: mean ± SD of residuals;\nnon-parallel/wide bounds suggest heteroscedasticity or poor class separation."
+  )
+)
+
+gt(table_s2) %>%
+  tab_header(
+    title = md("**Supplementary Table S2. Model structure and commonly assessment tools used in the LCMM analysis**")
+  ) %>%
+  tab_source_note(
+    md("*DoS and residual envelopes were implemented following Peugh & Fan and Elsensohn et al.*")
+  ) %>%
+  tab_options(
+    table.font.size = 11,
+    data_row.padding = px(2),
+    table.border.top.color = "black",
+    heading.border.bottom.color = "black",
+    column_labels.border.bottom.color = "black"
+  ) 
+
+
+
+```
+
+```{r}
+#| label: Fig-S1
+#| fig-align: left
+#| fig-width: 10
+#| fig-height: 7
+#| warning: false
+
+
+
+# Paquetes necesarios
+library(dplyr)
+library(ggplot2)
+library(purrr)
+library(tidyr)
+library(stringr)
+library(scales)
+library(patchwork)
+
+# 1. Cargar datos
+coverage_data <- read.csv("coverage_data.csv")
+
+
+# 2. Cargar modelos
+all_named_models <- readRDS("all_named_models.rds")
+
+
+
+
+# 3. Función para extraer data de residuos por clase (versión simple y robusta)
+extract_residual_data <- function(model, nameofoutcome, nameofage = "ano", data, model_label) {
+  k <- ifelse(is.null(model$ng), 1, model$ng)
+  preds <- model$pred
+
+  # Asegura columna de predicción cuando k == 1
+  if (k == 1 && !"pred_ss1" %in% names(preds)) {
+    if ("pred" %in% names(preds)) {
+      preds$pred_ss1 <- preds$pred
+    } else if ("pred_marg" %in% names(preds)) {
+      preds$pred_ss1 <- preds$pred_marg
+    } else {
+      stop("No encuentro columna de predicción en model$pred (pred/pred_marg/pred_ss1).")
+    }
+  }
+
+  # ID: usa la 1ª columna de model$pred (suele ser id o subject)
+  nameofid <- names(model$pred)[1]
+
+  # Usa SIEMPRE los datos del modelo (no coverage_data) para evitar desalineaciones
+  model_data <- model$call$data
+
+  # Si el nombre de tiempo solicitado no existe en los datos del modelo, intenta detectarlo
+  if (!nameofage %in% names(model_data)) {
+    cand_time <- intersect(c("ano", "year", "time", "Time", "X", "timevar"), names(model_data))
+    if (length(cand_time) == 0) stop("No encuentro variable de tiempo en model$call$data.")
+    nameofage <- cand_time[1]
+  }
+
+  # Alinear por orden dentro de cada id
+  model_data <- model_data %>%
+    dplyr::group_by(.data[[nameofid]]) %>%
+    dplyr::mutate(row_id = dplyr::row_number()) %>%
+    dplyr::ungroup()
+
+  preds <- preds %>%
+    dplyr::group_by(.data[[nameofid]]) %>%
+    dplyr::mutate(row_id = dplyr::row_number()) %>%
+    dplyr::ungroup()
+
+  # Unir predicciones + clase + observado del modelo
+  test <- dplyr::left_join(preds, model$pprob, by = nameofid) %>%
+    dplyr::left_join(
+      dplyr::select(model_data, dplyr::all_of(nameofid), !!rlang::sym(nameofoutcome), !!rlang::sym(nameofage), row_id),
+      by = c(nameofid, "row_id")
+    )
+
+  # Residuales por clase
+  residual_df <- purrr::map_dfr(seq_len(k), function(i) {
+    class_col <- if (k == 1) "pred_ss1" else paste0("pred_ss", i)
+    test %>%
+      dplyr::filter(k == 1 | class == i) %>%
+      dplyr::transmute(
+        ano_real   = .data[[nameofage]],
+        Residuals  = .data[[nameofoutcome]] - .data[[class_col]],
+        class_label = paste("Class", i),
+        model_label = model_label
+      )
+  })
+
+  return(residual_df)
+}
+
+# 4. Definir modelos y outcomes a graficar
+models_to_plot <- list(
+  "DGCC" = all_named_models[["5class_cubic_nre_dgcc_model"]],
+  "DRSC" = all_named_models[["4class_cubic_nre_drsc_model"]]
+)
+
+outcomes <- c("dgcc","drsc")
+names(outcomes) <- names(models_to_plot)
+
+# 5. Extraer todos los datos de residuos
+residual_data_all <- purrr::pmap_dfr(
+  list(models_to_plot, outcomes, names(models_to_plot)),
+  ~ extract_residual_data(..1, ..2, nameofage = "ano", data = coverage_data, model_label = ..3)
+)
+
+
+
+# 6. Función para plotear cada modelo
+plot_residual_block <- function(df, title) {
+  # quitar clases NA para que facet no las cuente
+  df <- df %>% dplyr::filter(!is.na(class_label))
+
+  # niveles dinámicos en orden 1..K
+  ord_nums <- readr::parse_number(as.character(df$class_label))  # robusto
+  ord <- paste("Class", sort(unique(ord_nums)))
+  df  <- df %>% dplyr::mutate(class_label = factor(class_label, levels = ord, ordered = TRUE))
+  n_cls <- length(levels(df$class_label))
+
+  ggplot(df, aes(x = ano_real, y = Residuals)) +
+    geom_point(size = 0.2, alpha = 0.3) +
+    stat_summary(fun = mean, geom = "line", color = "darkcyan", size = 0.6) +
+    facet_wrap(~ class_label, nrow = 1, ncol = n_cls) +  # 1 fila, K columnas
+    ylim(-1, 1) +
+    scale_x_continuous(breaks = seq(2011, 2023, 2)) +
+    theme_bw(base_size = 9) +
+    labs(x = "Year", y = "Residuals", title = title) +
+    theme(
+      strip.text = element_text(face = "bold", size = 8),
+      axis.text.x = element_text(size = 7, angle = 45, hjust = 1),
+      axis.text.y = element_text(size = 7),
+      plot.title  = element_text(face = "bold", size = 10, hjust = 0),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank()
+    )
+}
+
+# 7. Crear los bloques de plots (ojo con el salto de línea)
+plot_dgcc_2023 <- plot_residual_block(residual_data_all %>% dplyr::filter(model_label == "DGCC"), "DGCC")
+plot_drsc_2023 <- plot_residual_block(residual_data_all %>% dplyr::filter(model_label == "DRSC"), "DRSC")
+
+# (opcional) si quedan apretados, sube el ancho del chunk:
+#fig-width: 12
+
+# make sure patchwork is available in THIS chunk
+if (!"package:patchwork" %in% search()) {
+  # install.packages("patchwork")  # uncomment once if needed
+  library(patchwork)
+}
+
+final_residual_plot <- (
+  plot_dgcc_2023 /
+  plot_drsc_2023
+) +
+  patchwork::plot_annotation(
+    title = "Supplementary Figure S1. Standardised residual plots by latent class under Model A",
+    subtitle = "Each panel shows standardised residuals over time. Top: DGCC (2011–2023); Bottom: DRSC (2011–2023).",
+    theme = theme(
+      plot.title = element_text(size = 16, face = "bold"),
+      plot.subtitle = element_text(size = 10)
+    )
+  )
+
+final_residual_plot
+
+
+
+```
+
+**Supplementary Figures S2 and S3. *Latent class selection elbows plots across ten different structures for DGCC and DRSC across 2011-2023***
+
+```{r}
+#| label: elbow-plots-no-period
+#| fig-width: 12
+#| fig-height: 5
+#| fig-cap: "Figure S3. Latent class selection plots for DGCC (2011–2023)"
+#| warning: false
+#| message: false
+
+# 0) Setup
+if ("package:plyr" %in% search()) detach("package:plyr", unload = TRUE)
+library(tidyverse)
+library(gridExtra)
+
+# 1) Read CSV and normalize names
+elbow_tbl <- read_csv("model_adequacy_table.csv", show_col_types = FALSE)
+names(elbow_tbl) <- tolower(names(elbow_tbl))
+if ("model_name" %in% names(elbow_tbl)) elbow_tbl <- elbow_tbl %>% rename(model = model_name)
+if ("modelo"     %in% names(elbow_tbl)) elbow_tbl <- elbow_tbl %>% rename(model = modelo)
+if ("bic_value"  %in% names(elbow_tbl)) elbow_tbl <- elbow_tbl %>% rename(bic   = bic_value)
+stopifnot(all(c("model","bic") %in% names(elbow_tbl)))
+
+# 2) Coerce BIC robustly; keep canonical Model
+elbow_tbl <- elbow_tbl %>%
+  mutate(
+    Model = as.character(model),
+    BIC   = if (is.numeric(bic)) bic else readr::parse_number(as.character(bic))
+  ) %>%
+  select(-any_of(c("bic_display"))) %>%           # drop helper cols that mix types
+  filter(is.finite(BIC))
+
+# 3) Derive key fields (NO period anywhere)
+# G (classes): from column if present, else from Model prefix (e.g., "4class_...")
+g_col <- names(elbow_tbl)[tolower(names(elbow_tbl)) %in% c("g","k","classes","n_classes","nclass")]
+elbow_tbl <- elbow_tbl %>%
+  mutate(G = if (length(g_col)) suppressWarnings(as.integer(.data[[g_col[1]]]))
+            else suppressWarnings(as.integer(str_extract(Model, "^[0-9]+"))))
+
+# Outcome: prefer column; else parse 'dgcc' or 'drsc' in Model; default UNKNOWN
+outcome_col <- names(elbow_tbl)[tolower(names(elbow_tbl)) %in% c("outcome","variable","outcome_name")]
+elbow_tbl <- elbow_tbl %>%
+  mutate(
+    Outcome = if (length(outcome_col)) toupper(as.character(.data[[outcome_col[1]]]))
+              else { out <- str_extract(Model, "(dgcc|drsc)"); toupper(ifelse(is.na(out), "UNKNOWN", out)) }
+  )
+
+# Structure: remove "<K>class_" prefix and anything from "_model" onwards; also drop trailing _dgcc/_drsc if present
+elbow_tbl <- elbow_tbl %>%
+  mutate(
+    Structure = Model %>%
+      str_replace("^[0-9]+class_", "") %>%
+      str_replace("_model.*$", "") %>%
+      str_replace("_(dgcc|drsc)$", "")
+  )
+
+# Keep only valid rows
+elbow_tbl <- elbow_tbl %>%
+  filter(!is.na(G), G > 0, !is.na(Outcome), Outcome %in% c("DGCC","DRSC"), !is.na(Structure))
+
+# 4) Pretty labels for structures (A–J)
+structure_labels <- elbow_tbl %>%
+  mutate(
+    Label = case_when(
+      str_detect(Structure, "linear_nre_homocedastic")       ~ "A",
+      str_detect(Structure, "linear_nre_heterocedastic")     ~ "B",
+      str_detect(Structure, "quadratic_nre")                 ~ "C",
+      str_detect(Structure, "cubic_nre")                     ~ "D",
+      str_detect(Structure, "linear_random_intercept$")      ~ "E",
+      str_detect(Structure, "linear_random_intercept_slope") ~ "F",
+      str_detect(Structure, "quadratic_random_effects$")     ~ "G",
+      str_detect(Structure, "quadratic_random_effects_prop") ~ "H",
+      str_detect(Structure, "cubic_random_effects$")         ~ "I",
+      str_detect(Structure, "cubic_random_effects_prop")     ~ "J",
+      TRUE ~ "Other"
+    ),
+    PrettyTitle = paste("Model", Label, "|", Outcome)
+  ) %>%
+  distinct(Structure, Outcome, PrettyTitle)
+
+# 5) Long format for class proportions (supports "%class1" or "class1")
+prop_cols <- names(elbow_tbl)[str_detect(names(elbow_tbl), "^%class")]
+if (!length(prop_cols)) prop_cols <- names(elbow_tbl)[str_detect(names(elbow_tbl), "^class\\d+")]
+stopifnot(length(prop_cols) > 0)
+
+class_df_long <- elbow_tbl %>%
+  pivot_longer(all_of(prop_cols), names_to = "Class", values_to = "Proportion") %>%
+  mutate(
+    Class = factor(Class, levels = prop_cols),
+    Proportion = suppressWarnings(as.numeric(Proportion))
+  )
+
+# 6) Keep Outcome×Structure combos with ≥2 distinct G (meaningful elbow)
+valid_keys <- class_df_long %>%
+  distinct(Outcome, Structure, G) %>%
+  count(Outcome, Structure, name = "nG") %>%
+  filter(nG >= 2L) %>%
+  select(Outcome, Structure)
+
+plot_keys <- valid_keys %>%
+  left_join(structure_labels, by = c("Outcome","Structure"))
+
+# 7) Plot function: stacked class proportions + BIC line (secondary axis)
+plot_elbow_stack <- function(df_model, title = NULL) {
+  df_model <- df_model %>% filter(is.finite(BIC))
+  df_summary <- df_model %>%
+    group_by(G, Class) %>%
+    summarise(Proportion = mean(Proportion, na.rm = TRUE), .groups = "drop")
+  bic_df <- df_model %>%
+    group_by(G) %>%
+    summarise(BIC = mean(BIC, na.rm = TRUE), .groups = "drop")
+  if (nrow(bic_df) < 2) return(NULL)
+  bmin <- min(bic_df$BIC, na.rm = TRUE); bmax <- max(bic_df$BIC, na.rm = TRUE)
+  sf   <- ifelse(bmax > bmin, 100/(bmax - bmin), 1)
+  bic_df <- bic_df %>% mutate(BIC_scaled = (BIC - bmin) * sf)
+
+  ggplot(df_summary, aes(x = factor(G), y = Proportion, fill = Class)) +
+    geom_col(color = "white") +
+    scale_fill_brewer(palette = "Reds") +
+    geom_line(data = bic_df, aes(x = factor(G), y = BIC_scaled, group = 1),
+              inherit.aes = FALSE, color = "black", linewidth = 0.5) +
+    geom_point(data = bic_df, aes(x = factor(G), y = BIC_scaled),
+               inherit.aes = FALSE, color = "black", size = 1) +
+    scale_y_continuous(
+      name = "% Proportion of Population",
+      sec.axis = sec_axis(~ . / sf + bmin, name = "BIC")
+    ) +
+    labs(title = title, x = "Number of Classes", fill = "Class") +
+    theme_minimal(base_size = 9) +
+    theme(legend.position = "none",
+          plot.title = element_text(size = 9, face = "bold"))
+}
+
+# 8) Build plots per Outcome×Structure (no period)
+plot_data_list <- map2(
+  plot_keys$Outcome, plot_keys$Structure,
+  ~ class_df_long %>% filter(Outcome == .x, Structure == .y)
+)
+plots <- map2(plot_data_list, plot_keys$PrettyTitle, plot_elbow_stack)
+valid_idx <- map_lgl(plots, ~ !is.null(.))
+plots <- plots[valid_idx]
+names(plots) <- plot_keys$PrettyTitle[valid_idx]
+
+# 9) Helpers to order panels A..J and render grids per Outcome
+extract_label <- function(name) str_remove(str_extract(name, "Model [A-J]"), "Model ")
+order_plot_group_by_label <- function(pl) {
+  if (!length(pl)) return(pl)
+  ord <- tibble(name = names(pl)) %>%
+    mutate(label = extract_label(name),
+           order = match(label, LETTERS[1:10])) %>%
+    arrange(order)
+  pl[ord$name]
+}
+plot_group_grid <- function(plots, outcome) {
+  outcome <- toupper(outcome)
+  group <- plots[str_detect(names(plots), fixed(paste0("| ", outcome)))]
+  if (!length(group)) { message("No plots found for outcome = ", outcome); return(invisible(NULL)) }
+  grid.arrange(grobs = order_plot_group_by_label(group), ncol = 5, nrow = 2)
+}
+
+# 10) Draw grids for the two outcomes (no period)
+plot_group_grid(plots, outcome = "DGCC")
+
+
+
+
+```
+
+```{r}
+#| message: false
+#| warning: false
+#| fig-height: 5
+#| fig-width: 12
+#| fig-cap: "Figure S3. Latent class selection plots for DRSC (2011–2023)"
+
+plot_group_grid(plots, outcome = "DRSC")
+```
+
+Each figure presents model comparison panels used to guide latent class number selection for a given outcome and time period. Within each panel, the black line displays the Bayesian Information Criterion (BIC) across models with 1 to 7 latent classes, allowing visual identification of the “elbow point” where model fit improvements begin to plateau. The vertical stacked bars represent the proportion of the population assigned to each class at each solution, with darker red hues indicating smaller class sizes. Together, the BIC curve and class distribution inform model selection by balancing statistical fit and classification adequacy. These plots support the decisions reported in Table 1 and discussed in the model adequacy assessment.
+
+```{r}
+#| label: ST3
+#| echo: false
+#| message: false
+#| warning: false
+#| paged-print: false
+
+selected_structures <- c(
+  "class_cubic_nre_dgcc_model",
+  #"class_quadratic_nre_dgcc_model_2011_2019",
+  "class_cubic_nre_drsc_model"#,
+  #"class_quadratic_random_effects_prop_drsc_model_2011_2019"
+)
+
+model_adequacy_table <- read.csv("model_adequacy_table.csv", header=T)
+model_adequacy_table %>%
+  filter(str_detect(Model, paste(selected_structures, collapse = "|"))) %>% 
+  mutate(Structure = case_when(
+      str_detect(Model, "linear_nre_homocedastic") ~ "A",
+      str_detect(Model, "linear_nre_heterocedastic") ~ "B",
+      str_detect(Model, "quadratic_nre") ~ "C",
+      str_detect(Model, "cubic_nre") ~ "D",
+      str_detect(Model, "linear_random_intercept_slope") ~ "F",
+      str_detect(Model, "linear_random_intercept") ~ "E",
+      str_detect(Model, "quadratic_random_effects_prop") ~ "H",
+      str_detect(Model, "quadratic_random_effects") ~ "G",
+      str_detect(Model, "cubic_random_effects_prop") ~ "J",
+      str_detect(Model, "cubic_random_effects") ~ "I",
+      TRUE ~ "Unknown"
+    ),
+    Outcome = case_when(
+      str_detect(Model, "dgcc") ~ "DGCC",
+      str_detect(Model, "drsc") ~ "DRSC",
+      TRUE ~ "Other"
+    ),
+    non_converged = abs(BIC) > 1e6,  # flag large BIC
+    BIC_display = ifelse(non_converged, "*", scales::number(BIC, accuracy = 0.1, big.mark = ","))
+  ) %>%
+  mutate(
+    entropy = round(entropy, 2),
+    Lowest_APPA = round(Lowest_APPA * 100, 2),
+    Lowest_OCC = round(Lowest_OCC, 1),
+    Smallest_Class_Size_Percentage = round(Smallest_Class_Size_Percentage, 1),
+    DoS_Mahalanobis = round(DoS_Mahalanobis, 1)
+  ) %>%
+  select(Outcome, Model, Structure, G, BIC_display, entropy,
+         Smallest_Class_Size_Percentage, Lowest_APPA,
+         Lowest_OCC, Highest_Mismatch, DoS_Mahalanobis) %>%
+  dplyr::rename(
+    "Nº of classes" = G,
+    "BIC" = BIC_display,
+    "Relative entropy" = entropy,
+    "Smallest class size (%)" = Smallest_Class_Size_Percentage,
+    "Lowest APPA (%)" = Lowest_APPA,
+    "Lowest OCC" = Lowest_OCC,
+    "Highest MMV" = Highest_Mismatch,
+    "Mahalanobis distance" = DoS_Mahalanobis
+  ) %>%
+  arrange(Outcome, Structure) %>% 
+  select(-Outcome, -Model) %>%
+  #filter(Structure %in% c("D", "C", "G")) %>% 
+  gt() %>%
+  tab_options(
+    table.font.size = 10,
+    data_row.padding = px(0),
+    table.border.top.color = "black",
+    heading.border.bottom.color = "black",
+    row_group.border.top.color = "black",
+    row_group.border.bottom.color = "white",
+    table.border.bottom.color = "white",
+    column_labels.border.top.color = "black",
+    column_labels.border.bottom.color = "black",
+    table_body.border.bottom.color = "black",
+    table_body.hlines.color = "white"
+  ) %>% 
+  tab_style(
+   style = cell_text(weight = "bold"),
+   locations = cells_body(rows = c(4, 11))
+  ) %>% 
+  tab_row_group(
+    group = "Diabetic retinopathy screening coverage 2011-2023",
+    rows =8:14
+  ) %>% 
+  tab_row_group(
+    group = "Diabetic glycemic control coverage 2011-2023",
+    rows =1:7
+  ) %>% 
+  tab_source_note(source_note = md("**Abbreviations:** LCMM - Latent class mixture model; BIC - Bayesian information criterion; SCS - Smallest class size; APPA - Average posterior probability; MMV - Mismatch value; OCC - Odds of correct classification. * Model did not converge; BIC not reliable.")) %>% 
+  tab_header(
+    title = md("**Supplementary Table S3. Model D estimated with a non-random effects cubic structure using latent class solutions ranging from one to seven**"))
+
+```
+
+```{r}
+#| label: ST4
+#| echo: false
+#| message: false
+#| warning: false
+#| paged-print: false
+
+library(dplyr)
+library(stringr)
+library(gt)
+library(scales)
+library(tibble)
+
+model_adequacy_table <- read.csv("model_adequacy_table.csv")
+
+
+# Tabla final
+dplyr::bind_rows(
+  model_adequacy_table %>%
+    dplyr::filter(
+      (stringr::str_detect(Model, "^4class_") & stringr::str_detect(Model, "dgcc_model")) |
+      (stringr::str_detect(Model, "^4class_") & stringr::str_detect(Model, "drsc_model"))
+    ) %>%
+    dplyr::mutate(
+      Structure = dplyr::case_when(
+        stringr::str_detect(Model, "linear_nre_homocedastic") ~ "A",
+        stringr::str_detect(Model, "linear_nre_heterocedastic") ~ "B",
+        stringr::str_detect(Model, "quadratic_nre") ~ "C",
+        stringr::str_detect(Model, "cubic_nre") ~ "D",
+        stringr::str_detect(Model, "linear_random_intercept_slope") ~ "F",
+        stringr::str_detect(Model, "linear_random_intercept") ~ "E",
+        stringr::str_detect(Model, "quadratic_random_effects_prop") ~ "H",
+        stringr::str_detect(Model, "quadratic_random_effects") ~ "G",
+        stringr::str_detect(Model, "cubic_random_effects_prop") ~ "J",
+        stringr::str_detect(Model, "cubic_random_effects") ~ "I",
+        TRUE ~ "Unknown"
+      ),
+      Outcome = dplyr::case_when(
+        stringr::str_detect(Model, "dgcc") ~ "DGCC",
+        stringr::str_detect(Model, "drsc") ~ "DRSC",
+        TRUE ~ "Other"
+      ),
+      non_converged = abs(BIC) > 1e6,
+      BIC_display = ifelse(non_converged, "*", scales::number(BIC, accuracy = 0.1, big.mark = ","))
+    ) %>%
+    dplyr::mutate(
+      entropy = round(entropy, 2),
+      Lowest_APPA = round(Lowest_APPA * 100, 2),
+      Lowest_OCC = round(Lowest_OCC, 1),
+      Smallest_Class_Size_Percentage = round(Smallest_Class_Size_Percentage, 1),
+      DoS_Mahalanobis = round(DoS_Mahalanobis, 1)
+    )
+  #,extra_row
+) %>%
+  dplyr::select(Outcome, Model, Structure, G, BIC_display, entropy,
+                Smallest_Class_Size_Percentage, Lowest_APPA,
+                Lowest_OCC, Highest_Mismatch, DoS_Mahalanobis) %>%
+  dplyr::rename(
+    "Nº of classes" = G,
+    "BIC" = BIC_display,
+    "Relative entropy" = entropy,
+    "Smallest class size (%)" = Smallest_Class_Size_Percentage,
+    "Lowest APPA (%)" = Lowest_APPA,
+    "Lowest OCC" = Lowest_OCC,
+    "Highest MMV" = Highest_Mismatch,
+    "Mahalanobis distance" = DoS_Mahalanobis
+  ) %>%
+  dplyr::mutate(
+    dplyr::across(dplyr::everything(), ~ ifelse(is.na(.), "", as.character(.))),
+    Structure = factor(
+      Structure,
+      levels = c("A", "B", "C", "D", "E", "*", "F", "G", "H", "I", "J")
+    )
+  ) %>%
+  dplyr::arrange(Outcome, Structure) %>%
+  dplyr::select(-Outcome, -Model) %>%
+  gt::gt() %>%
+  gt::tab_options(
+    table.font.size = 10,
+    data_row.padding = gt::px(0),
+    table.border.top.color = "black",
+    heading.border.bottom.color = "black",
+    row_group.border.top.color = "black",
+    row_group.border.bottom.color = "white",
+    table.border.bottom.color = "white",
+    column_labels.border.top.color = "black",
+    column_labels.border.bottom.color = "black",
+    table_body.border.bottom.color = "black",
+    table_body.hlines.color = "white"
+  ) %>%
+  gt::tab_style(
+    style = gt::cell_text(weight = "bold"),
+    locations = gt::cells_body(rows = c(4, 14))
+  ) %>%
+  gt::tab_row_group(
+    group = "Diabetic retinopathy screening coverage",
+    rows = 11:20
+  ) %>%
+  gt::tab_row_group(
+    group = "Diabetic glycemic control coverage",
+    rows = 1:10
+  ) %>%
+  gt::tab_source_note(source_note = gt::md("**Abbreviations:** LCMM - Latent class mixture model; BIC - Bayesian information criterion; SCS - Smallest class size; APPA - Average posterior probability; MMV - Mismatch value; OCC - Odds of correct classification. * Model did not converge; BIC not reliable.")) %>%
+  gt::tab_source_note(source_note = gt::md("**Note:** * Model F does not converge for diabetic retinopathy screening coverage.")) %>%
+  gt::tab_header(
+    title = gt::md("**Supplementary Table S4. Description of the 10 candidate model structures tested in the LCMM analysis**")
+  )
+
+
+
+```
+
+```{r}
+#| label: predicted-trajectories-plot
+#| echo: false
+#| message: false
+#| warning: false
+#| fig-height: 5
+#| fig-width: 12
+#| fig-cap: "Figure S4. Predicted latent class trajectories of diabetic retinopathy screening coverage (2011–2023)"
+
+# 📂 Cargar el archivo de modelos
+all_named_models <- readRDS("all_named_models.rds")
+coverage_data <- readr::read_csv("coverage_data.csv")
+
+
+predicted_plot_list <- list()
+
+for (model_name in c("4class_linear_nre_homocedastic_dgcc_model",
+                      "4class_linear_nre_heterocedastic_dgcc_model",
+                      "4class_quadratic_nre_dgcc_model",
+                      "4class_cubic_nre_dgcc_model",
+                      "4class_linear_random_intercept_dgcc_model",
+                      "4class_linear_random_intercept_slope_dgcc_model",
+                      "4class_quadratic_random_effects_dgcc_model",
+                      "4class_quadratic_random_effects_prop_dgcc_model",
+                      "4class_cubic_random_effects_dgcc_model",
+                      "4class_cubic_random_effects_prop_dgcc_model",
+                      "4class_linear_nre_homocedastic_drsc_model",
+                      "4class_linear_nre_heterocedastic_drsc_model",
+                      "4class_quadratic_nre_drsc_model",
+                      "4class_cubic_nre_drsc_model",
+                      "4class_linear_random_intercept_drsc_model",
+                      "4class_linear_random_intercept_slope_drsc_model",
+                      "4class_quadratic_random_effects_drsc_model",
+                      "4class_quadratic_random_effects_prop_drsc_model",
+                      "4class_cubic_random_effects_drsc_model",
+                      "4class_cubic_random_effects_prop_drsc_model")
+      ) {
+
+  
+  model <- all_named_models[[model_name]]
+  pred <- model$pred
+  data <- model$call$data
+
+  pred_cols <- grep("^pred_m[1-4]$", names(pred), value = TRUE)
+if (length(pred_cols) == 0) {
+  model_letter <- LETTERS[which(predicted_plot_list == model_name)]
+  domain <- toupper(str_extract(model_name, "dgcc|drsc"))
+
+  message("⚠️ MODEL ", model_letter, " (", domain, ") did not converge or lacks predictions. Placeholder inserted.")
+
+  missing_plot <- ggplot(data.frame(x = 1, y = 1), aes(x, y)) +
+    geom_text(label = paste0("Model ", model_letter, "\ndid not converge"), size = 4, hjust = 0.5, vjust = 0.5) +
+    xlim(0, 2) + ylim(0, 2) +
+    theme_void() +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold"),
+      panel.border = element_rect(color = "grey80", fill = NA)
+    )
+
+  predicted_plot_list[[model_name]] <- missing_plot
+  next
+}
+
+
+  # Asignar row_id para join
+  data <- data %>%
+    group_by(id) %>%
+    mutate(row_id = row_number()) %>%
+    ungroup()
+
+  pred <- pred %>%
+    group_by(id) %>%
+    mutate(row_id = row_number()) %>%
+    ungroup()
+
+  # Combinar para obtener year + predicciones
+  combined <- left_join(
+    data %>% select(id, row_id, year),
+    pred %>% select(id, row_id, all_of(pred_cols)),
+    by = c("id", "row_id")
+  )
+
+  # Paso crítico: pivotear, extraer clase, construir año
+  pred_long <- combined %>%
+    pivot_longer(
+      cols = all_of(pred_cols),
+      names_to = "class_label",
+      values_to = "pred"
+    ) %>%
+    mutate(
+      class = as.integer(gsub("pred_m", "", class_label)),
+      year = year
+    )
+
+
+  stopifnot(!any(is.na(pred_long$class)))
+  stopifnot("class" %in% names(pred_long))
+  stopifnot("year" %in% names(pred_long))
+
+  # Calcular promedio por clase y año
+    pred_summary <- pred_long %>%
+    dplyr::group_by(class, year) %>%
+    dplyr::summarise(pred = mean(pred, na.rm = TRUE), .groups = "drop")
+
+
+  stopifnot("class" %in% names(pred_summary))
+
+# Asignar nombres automáticos tipo "Class 1", "Class 2", etc.
+pred_summary <- pred_summary %>%
+  mutate(label = paste("Class", class))
+
+
+  # Etiqueta del eje Y
+  y_axis_label <- if (str_detect(model_name, "dgcc")) {
+  "Diabetic glycaemic control coverage"
+  } else {
+    "Diabetic retinopathy screening coverage"
+  }
+
+  # Crear gráfico
+  predicted_plot <- ggplot(pred_summary, aes(x = year, y = pred, color = label)) +
+    geom_line(size = 1) +
+    scale_color_lancet(name = "Latent class") +
+    scale_x_continuous(breaks = seq(0, 12, 2), labels = seq(2011, 2023, 2)) +
+    scale_y_continuous(labels = percent) +
+    labs(
+      title = paste("Predicted latent class trajectories -", toupper(str_extract(model_name, "dgcc|drsc"))),
+      x = "Year",
+     y = y_axis_label 
+     )+
+    theme_bw() +
+     guides(color = guide_legend(nrow = 2, byrow = TRUE,  title = NULL,  title.position = "bottom", title.hjust = 0))+
+    theme(
+      legend.position = "bottom",
+      #legend.title = element_text(size = 9, face = "bold"),
+      #legend.text = element_text(size = 8),
+      legend.justification = c(0, 1),
+        legend.direction = "horizontal",
+        legend.box = "horizontal",
+        legend.margin = margin(t = 1, b = 1, r = 1, l = 1),
+        legend.key.size = unit(0.2, "cm"),
+      axis.text = element_text(size = 7),
+      axis.title = element_text(size = 8, face = "bold"),
+      panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),           # quita borde por defecto
+    axis.line = element_line(color = "black") # dibuja solo ejes inferior e izquierdo
+    )
+
+  predicted_plot_list[[model_name]] <- predicted_plot
+}
+
+
+
+# Dividir en dos listas: DGCC y DRSC
+dgcc_plots <- predicted_plot_list[str_detect(names(predicted_plot_list), "dgcc")]
+drsc_plots <- predicted_plot_list[str_detect(names(predicted_plot_list), "drsc")]
+
+# Completar cada conjunto con espacios vacíos si falta alguno
+while (length(dgcc_plots) < 10) {
+  dgcc_plots[[length(dgcc_plots) + 1]] <- patchwork::plot_spacer()
+}
+while (length(drsc_plots) < 10) {
+  drsc_plots[[length(drsc_plots) + 1]] <- patchwork::plot_spacer()
+}
+
+# Renombrar cada gráfico con letras A–J
+names(dgcc_plots) <- paste0("Model ", LETTERS[1:10])
+names(drsc_plots) <- paste0("Model ", LETTERS[1:10])
+
+# Agregar títulos de subgráfico
+dgcc_plots <- Map(function(p, title) p + ggtitle(title), dgcc_plots, names(dgcc_plots))
+drsc_plots <- Map(function(p, title) p + ggtitle(title), drsc_plots, names(drsc_plots))
+
+# Crear figuras combinadas
+dgcc_combined_plot <- patchwork::wrap_plots(dgcc_plots, ncol = 5, nrow = 2) #+
+  #plot_annotation(title = "Predicted latent class trajectories – DGCC Models (A–J)")
+
+
+# Mostrar ambos paneles
+dgcc_combined_plot
+
+
+```
+
+```{r}
+#| label: predicted-trajectories-plot2
+#| echo: false
+#| message: false
+#| warning: false
+#| fig-height: 5
+#| fig-width: 12
+#| fig-cap: "Figure S5. Predicted latent class trajectories of diabetic retinopathy screening coverage (2011–2023)"
+
+drsc_combined_plot <- patchwork::wrap_plots(drsc_plots, ncol = 5, nrow = 2) #+
+  #plot_annotation(title = "Predicted latent class trajectories – DRSC Models (A–J)")
+
+drsc_combined_plot
+
+```
+
+```{r}
+#| label: individual-trajectories-plot
+#| echo: false
+#| message: false
+#| warning: false
+#| fig-width: 10
+#| fig-height: 7
+#| fig-cap: "Figure S4. Latent class selection plots for DRSC (2011–2023)"
+
+
+# 📂 Cargar el archivo de modelos
+all_named_models <- readRDS("all_named_models.rds")
+
+# 📋 Definir cuáles modelos quieres graficar
+model_names_to_plot <- c(
+  "4class_cubic_nre_dgcc_model",
+  "4class_cubic_nre_drsc_model")
+
+# 🏷️ Etiquetas de las trayectorias
+trajectory_labels <- list(
+  "4class_cubic_nre_dgcc_model" = c(
+    "Consistently lower", "Stable medium", "Stable upper medium", "Highest"
+  ),
+  "4class_cubic_nre_drsc_model" = c(
+    "Consistently low", "Stable medium", "Increasing", "Highest decreasing"
+  )
+)
+
+# 🏷️ Títulos de los modelos
+model_names_to_plot <- c(
+  "4class_cubic_nre_dgcc_model",
+  "4class_cubic_nre_drsc_model"
+)
+
+# ⚙️ Crear los gráficos
+individual_trajectories_plots <- purrr::map(model_names_to_plot, function(model_name) {
+  
+  model <- all_named_models[[model_name]]
+  
+  # ✅ Verificación de componentes
+  if (is.null(model) || is.null(model$call$data) || is.null(model$pred) || is.null(model$pprob)) {
+    cat(paste0("⚠️ Skipping model: ", model_name, "\n"))
+    return(NULL)
+  }
+  
+  # 🔍 Outcome variable
+  outcome_var <- ifelse(str_detect(model_name, "dgcc"), "dgcc", "drsc")
+  
+  # 🛠️ Preprocesar datos
+  model_data <- model$call$data %>%
+    arrange(id, year) %>%
+    group_by(id) %>%
+    mutate(row_id = row_number()) %>%
+    ungroup()
+  
+  pred_data <- model$pred
+  
+  # 🔥 Verificar si pred_data tiene columna "time"
+  if ("time" %in% names(pred_data)) {
+    pred_data <- pred_data %>%
+      arrange(id, time)
+  } else {
+    pred_data <- pred_data %>%
+      arrange(id)
+  }
+  
+  pred_data <- pred_data %>%
+    group_by(id) %>%
+    mutate(row_id = row_number()) %>%
+    ungroup()
+  
+  merged_df <- left_join(model_data, pred_data, by = c("id", "row_id")) %>%
+    left_join(model$pprob, by = "id") %>%
+    filter(!is.na(class))
+  
+  # 🧹 Ordenar las clases
+  class_order <- merged_df %>%
+    group_by(class) %>%
+    dplyr::summarise(mean_val = mean(.data[[outcome_var]], na.rm = TRUE), .groups = "drop") %>%
+    arrange(mean_val) %>%
+    mutate(class_order = row_number())
+  
+  merged_df <- merged_df %>%
+    left_join(class_order, by = "class") %>%
+    mutate(class = class_order)
+  
+  label_df <- merged_df %>%
+    distinct(id, class) %>%
+    group_by(class) %>%
+    dplyr::summarise(n = n(), .groups = "drop") %>%
+    mutate(
+      percentage = n / sum(n),
+      label = paste0(trajectory_labels[[model_name]], " (", percent(percentage, accuracy = 0.1), ")")
+    ) %>%
+    arrange(class)
+  
+  merged_df <- merged_df %>%
+    left_join(label_df, by = "class") %>%
+    mutate(label = factor(label, levels = label_df$label))
+  
+  # 🎨 Construir el gráfico
+  ggplot(merged_df, aes(x = year, y = .data[[outcome_var]], group = id, color = label)) +
+    geom_line(alpha = 0.15, linewidth = 0.3) +
+    stat_summary(fun = mean, geom = "line", aes(group = label), linewidth = 0.9) +
+    facet_wrap(~ label, nrow = 1, strip.position = "top") +
+    scale_color_lancet() +
+    scale_y_continuous(limits = c(0, 1), labels = percent) +
+    scale_x_continuous(breaks = seq(1, 13, by = 2), labels = seq(2011, 2023, by = 2)) +
+    labs(
+      #title = model_titles[[model_name]],
+      x = "Year",
+      y = ifelse(outcome_var == "dgcc", 
+                 "Diabetic glycaemic control coverage", 
+                 "Diabetic retinopathy screening coverage")
+    ) +
+    theme_minimal(base_size = 10) +
+    theme(
+      strip.text = element_text(size = 8, face = "bold"),
+      plot.title = element_text(size = 10, face = "bold", hjust = 0),
+      axis.text = element_text(size = 7),
+      axis.title = element_text(size = 8.5),
+      legend.position = "none",
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      panel.border = element_blank(),           # quita borde por defecto
+      axis.line = element_line(color = "black") # dibuja solo ejes inferior e izquierdo
+    )
+})
+
+# 🧩 Combinar plots válidos
+patchwork::wrap_plots(purrr::compact(individual_trajectories_plots), ncol = 1) +
+  patchwork::plot_annotation(
+    title = "Raw individual trajectories by latent class (ordered within model)",
+    subtitle = "Each facet uses model-specific class ordering and consistent color palette",
+    theme = theme(
+      plot.title = element_text(size = 13, face = "bold", hjust = 0),
+      plot.subtitle = element_text(size = 10, hjust = 0)
+    )
+  )
+```
+
+```{r}
+#| label: residual Elsensohn envelopes plots dgcc
+#| echo: false
+#| message: false
+#| warning: false
+#| fig-height: 4
+#| fig-width: 5
+#| paged-print: false
+#| fig-align: left
+#| fig-cap: "Figure S5. Diabetic glycaemic control coverage trajectories and residual Elsensohn envelopes plots" 
+
+# 📂 Load data
+coverage_data <- read.csv("coverage_data.csv")
+
+all_named_models <- readRDS("all_named_models.rds")
+
+# 🏷️ Etiquetas de las trayectorias
+trajectory_labels <- list(
+  "4class_cubic_nre_dgcc_model" = c(
+    "Consistently lower", "Stable medium", "Stable upper medium", "Highest"
+  ),
+  "4class_cubic_nre_drsc_model" = c(
+    "Consistently low", "Stable medium", "Increasing", "Highest decreasing"
+  )
+)
+
+# 🏷️ Títulos de los modelos
+model_names_to_plot <- c(
+  "4class_cubic_nre_dgcc_model",
+  "4class_cubic_nre_drsc_model"
+)
+
+selected_models <- all_named_models[model_names_to_plot]
+residual_plot_list <- list()
+
+# 📈 Loop for models
+for (i in seq_along(selected_models)) {
+  
+  model_name <- names(selected_models)[i]
+  model <- selected_models[[i]]
+  
+  outcome_var <- ifelse(grepl("drsc", model_name, ignore.case = TRUE), "drsc", "dgcc")
+  
+  model_data <- model$call$data %>%
+    group_by(id) %>%
+    mutate(row_id = row_number()) %>%
+    ungroup()
+  
+  pred_df <- model$pred %>%
+    group_by(id) %>%
+    mutate(row_id = row_number()) %>%
+    ungroup()
+  
+  merged_df <- left_join(model_data, pred_df, by = c("id", "row_id")) %>%
+    left_join(model$pprob, by = "id") %>%
+    filter(!is.na(class)) %>%
+    rowwise() %>%
+    mutate(
+      pred = get(paste0("pred_m", class)),
+      prob = get(paste0("prob", class)),
+      residual = .data[[outcome_var]] - pred
+    ) %>%
+    ungroup()
+  
+  summary_residuals <- merged_df %>%
+    group_by(year, class) %>%
+    dplyr::summarise(
+      mean_obs = wtd.mean(obs, weights = prob, na.rm = TRUE),
+      sd_resid = sqrt(wtd.var(residual, weights = prob, na.rm = TRUE)),
+      lower = mean_obs - sd_resid,
+      upper = mean_obs + sd_resid,
+      .groups = "drop"
+    ) %>%
+    mutate(model = model_name)
+  
+  # Reorder classes based on average mean
+  class_order <- summary_residuals %>%
+    group_by(class) %>%
+    dplyr::summarise(avg_mean_obs = mean(mean_obs, na.rm = TRUE)) %>%
+    arrange(avg_mean_obs) %>%
+    mutate(order_class = row_number())
+  
+  # Assign labels based on order_class
+  class_percentages <- merged_df %>%
+    distinct(id, class) %>%
+    left_join(class_order, by = "class") %>%
+    group_by(order_class) %>%
+    dplyr::summarise(n = n(), .groups = "drop") %>%
+    mutate(percentage = n / sum(n)) %>%
+    arrange(order_class)
+  
+  trajectory_vector <- trajectory_labels[[model_name]]
+  
+  if (length(trajectory_vector) != nrow(class_percentages)) {
+    stop("⚠️ Número de etiquetas no coincide con el número de clases")
+  }
+  
+  class_percentages <- class_percentages %>%
+    mutate(label = paste0(trajectory_vector, " (", percent(percentage, accuracy = 0.1), ")"))
+  
+  # Final dataset for plotting
+  summary_residuals_plot <- summary_residuals %>%
+    left_join(class_order, by = "class") %>%
+    left_join(class_percentages %>% select(order_class, label), by = "order_class") %>%
+    mutate(label = factor(label, levels = class_percentages$label))
+  
+  # Y-axis label
+  
+     y_axis_label <- if (grepl("dgcc", model_name, ignore.case = TRUE)) {
+      "Diabetic glycaemic control coverage"
+    } else {
+      "Diabetic retinopathy screening coverage"
+    }
+  
+  # 📈 Build plot
+  plot_residual <- ggplot(summary_residuals_plot, aes(x = year, group = label)) +
+    geom_line(aes(y = mean_obs, color = label), linewidth = 0.8) +
+    geom_ribbon(aes(ymin = lower, ymax = upper, fill = label), alpha = 0.2) +
+    scale_x_continuous(breaks = seq(1, 13, by = 2), labels = seq(2011, 2023, by = 2)) +
+    scale_y_continuous(limits = c(0, 1), labels = percent) +
+    scale_color_lancet(
+      na.translate = FALSE,
+      guide = guide_legend(override.aes = list(linetype = "solid", shape = NA))
+    ) +
+    scale_fill_lancet(guide = "none") +
+    labs(
+      x = "Year",
+      y = y_axis_label,
+      color = "Latent class"
+    ) +
+    theme_bw() +
+    guides(color = guide_legend(nrow = 2, byrow = TRUE, title.position = "top", title.hjust = 0)) +
+    theme(
+      legend.position = c(0.02, 0.98),
+      legend.justification = c(0, 1),
+      legend.direction = "horizontal",
+      legend.box = "horizontal",
+      legend.margin = margin(t = 1, b = 1, r = 1, l = 1),
+      legend.key.size = unit(0.2, "cm"),
+      legend.background = element_rect(fill = "transparent", color = NA),
+      legend.text = element_text(size = 7),
+      legend.title = element_text(size = 8, face = "bold"),
+      axis.text = element_text(size = 6.5),
+      axis.title = element_text(size = 7.5),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+    panel.border = element_blank(),           # quita borde por defecto
+    axis.line = element_line(color = "black") # dibuja solo ejes inferior e izquierdo
+    )
+  
+  residual_plot_list[[i]] <- plot_residual
+}
+
+# 🖼 Titles
+dgcc_title <- patchwork::wrap_elements(grid::textGrob(
+  "Diabetic glycaemic control coverage residual Elsensohn envelopes plots", 
+  x = 0, hjust = 0, gp = grid::gpar(fontface = "bold", fontsize = 8)
+))
+
+drsc_title <- patchwork::wrap_elements(grid::textGrob(
+  "Diabetic retinopathy screening coverage residual Elsensohn envelopes plots", 
+  x = 0, hjust = 0, gp = grid::gpar(fontface = "bold", fontsize = 8)
+))
+
+
+residual_plot_list[[1]] 
+residual_plot_list[[2]] 
+
+
+```
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| paged-print: false
+
+# Capturar salida del summary
+summary_lines <- capture.output(summary(all_named_models[["4class_cubic_nre_dgcc_model"]]))
+
+# Extraer líneas relevantes
+start <- which(grepl("^Fixed effects in the longitudinal model:", summary_lines)) + 2
+end <- which(grepl("^\\s*Residual standard error", summary_lines)) - 1
+long_lines <- summary_lines[start:end]
+
+# Filtrar líneas vacías
+long_lines <- long_lines[nzchar(long_lines)]
+
+# Parseo robusto con regex
+long_df <- long_lines %>%
+  str_trim() %>%
+  str_match("^(.+?)\\s+(class\\d)\\s+([-0-9.Ee]+)\\s+([-0-9.Ee]+)\\s+([-0-9.Ee]+)\\s+([-0-9.Ee]+)") %>%
+  as.data.frame() %>%
+  filter(!is.na(V2)) %>%
+  select(term = V2, class = V3, coef = V4, se = V5, wald = V6, pvalue = V7) %>%
+  mutate(across(c(coef, se, wald, pvalue), ~ suppressWarnings(as.numeric(.)))) %>%
+  mutate(
+    coef = round(coef, 5),
+    se = round(se, 5),
+    wald = round(wald, 3),
+    pvalue = round(pvalue, 3)
+  ) %>%
+  relocate(class, term)
+
+
+model_names <- c(
+  "4class_cubic_nre_dgcc_model",
+  "4class_cubic_nre_drsc_model"
+)
+
+make_fur_table <- function(model_name, all_named_models, label_vector = NULL) {
+  model <- all_named_models[[model_name]]
+  
+  # Capturar líneas relevantes del resumen
+  summary_lines <- capture.output(summary(model))
+  start <- which(grepl("^Fixed effects in the longitudinal model:", summary_lines)) + 2
+  end <- which(grepl("^\\s*Residual standard error", summary_lines)) - 1
+  long_lines <- summary_lines[start:end] %>%
+    stringr::str_trim() %>%
+    .[. != ""]
+  
+  if (length(long_lines) > 0 && grepl("class", long_lines[1])) {
+    long_lines <- long_lines[-1]
+  }
+  
+  # Extraer tabla de coeficientes
+  pattern <- "^\\s*(\\w+|I\\(year\\^\\d\\))\\s+(class\\d)\\s+([-0-9.Ee]+)\\s+([-0-9.Ee]+)\\s+([-0-9.Ee]+)\\s+([0-9.Ee]+)"
+  long_df <- stringr::str_match(long_lines, pattern) %>%
+    as.data.frame() %>%
+    dplyr::select(term = V2, class = V3, coef = V4, se = V5, wald = V6, pvalue = V7) %>%
+    dplyr::mutate(
+      dplyr::across(c(coef, se, wald, pvalue), as.numeric),
+      coef_2010 = coef
+    )
+  
+  # Detectar términos disponibles para calcular coef_2011
+  terms_present <- unique(long_df$term)
+  terms_to_use <- intersect(c("intercept", "year", "I(year^2)", "I(year^3)"), terms_present)
+  
+  coef_2011_df <- long_df %>%
+    dplyr::filter(term %in% terms_to_use) %>%
+    tidyr::pivot_wider(id_cols = class, names_from = term, values_from = coef_2010, values_fill = 0) %>%
+    dplyr::mutate(
+      coef_2011 = rowSums(dplyr::across(dplyr::all_of(terms_to_use)))
+    ) %>%
+    dplyr::select(class, coef_2011)
+  
+  final_df <- long_df %>%
+    dplyr::left_join(coef_2011_df, by = "class") %>%
+    dplyr::mutate(
+      coef_2011 = ifelse(term == "intercept", coef_2011, coef_2010),
+      class_num = as.integer(stringr::str_extract(class, "\\d+"))
+    )
+  
+  # Obtener orden de clases observado
+  observed_df <- dplyr::left_join(model$pred, model$pprob, by = "id") %>%
+    dplyr::mutate(
+      class_num = as.integer(as.character(class)),
+      obs = as.numeric(obs)
+    )
+  
+  class_order <- observed_df %>%
+    dplyr::group_by(class_num) %>%
+    dplyr::summarise(avg_observed = mean(obs, na.rm = TRUE), .groups = "drop") %>%
+    dplyr::arrange(avg_observed) %>%
+    dplyr::mutate(label = if (is.null(label_vector)) paste("Class", dplyr::row_number()) else label_vector)
+  
+  final_df <- final_df %>%
+    dplyr::left_join(class_order, by = "class_num") %>%
+    dplyr::mutate(new_class = as.integer(dplyr::dense_rank(avg_observed))) %>%
+    dplyr::arrange(new_class, term)
+  
+  term_order <- c("intercept", "year", "I(year^2)", "I(year^3)")
+  final_df <- final_df %>%
+    dplyr::mutate(term = factor(term, levels = term_order, ordered = TRUE)) %>%
+    dplyr::arrange(new_class, term)
+  
+  row_indices <- split(1:nrow(final_df), final_df$new_class)
+  
+  gt_table <- final_df %>%
+  dplyr::filter(!is.na(term)) %>%
+  dplyr::select(term, coef_2011, se, pvalue) %>%
+  dplyr::mutate(
+    coef_2011 = formatC(coef_2011, format = "f", digits = 2),
+    se        = formatC(se,        format = "f", digits = 2),
+    pvalue    = formatC(pvalue,    format = "f", digits = 3)
+  ) %>%
+  gt::gt() %>%
+    gt::tab_options(
+      table.font.size = 10,
+      data_row.padding = gt::px(0),
+      table.border.top.color = "black",
+      heading.border.bottom.color = "black",
+      row_group.border.top.color = "black",
+      row_group.border.bottom.color = "white",
+      table.border.bottom.color = "white",
+      column_labels.border.top.color = "black",
+      column_labels.border.bottom.color = "black",
+      table_body.border.bottom.color = "black",
+      table_body.hlines.color = "white"
+    ) %>%
+    gt::tab_header(
+      title = gt::md(paste0("**Estimates from  – ", model_name, "**"))
+    )
+  
+  for (i in rev(sort(unique(final_df$new_class)))) {
+    group_rows <- row_indices[[as.character(i)]]
+    label_text <- paste("Class", i, "-", class_order$label[i])
+    gt_table <- gt_table %>%
+      gt::tab_row_group(
+        label = label_text,
+        rows = group_rows
+      )
+  }
+  
+  return(gt_table)
+}
+
+gt_tables <- purrr::map(model_names, ~ make_fur_table(.x, all_named_models))
+gt_tables[[1]] 
+gt_tables[[2]]
+
+
+
+
+
+```
+
+```{r}
+#| label: run_sensitivity_analysis
+#| message: false
+#| warning: false
+#| paged-print: false
+
+sens1 <- readRDS("sens_dgcc_seed123.rds")
+sens2 <- readRDS("sens_dgcc_seed456.rds")
+sens3 <- readRDS("sens_dgcc_seed789.rds")
+
+sens4 <- readRDS("sens_drsc_seed123.rds")
+sens5 <- readRDS("sens_drsc_seed456.rds")
+sens6 <- readRDS("sens_drsc_seed789.rds")
+
+# Panel original para cada dimensión
+plot_dgcc_original <- predicted_plot_list[["4class_cubic_nre_dgcc_model"]] +
+  labs(title = "Original – Glycaemic control") +
+  theme(plot.title = element_text(face = "bold", size = 10))
+
+plot_drsc_original <- predicted_plot_list[["4class_cubic_nre_drsc_model"]] +
+  labs(title = "Original – DR screening") +
+  theme(plot.title = element_text(face = "bold", size = 10))
+
+# Panel 1: DGCC
+panel_dgcc <- (plot_dgcc_original | sens1$plot) +
+              patchwork::plot_annotation(title = "DGCC – Trajectory stability under 80% random subsamples")
+
+# Panel 2: DRSC
+panel_drsc <- (plot_drsc_original | sens4$plot) +
+              patchwork::plot_annotation(title = "DRSC – Trajectory stability under 80% random subsamples")
+
+panel_dgcc
+panel_drsc
+
+
+
+
+```
+
+```{r}
+#| label: OR-tables
+#| echo: false
+#| message: false
+#| warning: false
+#| paged-print: false
+
+
+# 📂 1. Cargar datos
+coverage_data <- read.csv("coverage_data.csv")
+all_named_models <- readRDS("all_named_models.rds")
+demographics <- read_csv("demographics.csv") %>%
+   mutate(
+    deprivation_index = index_standardized,
+    urbanisation_classification = factor(urbanisation_classification, levels = c("Urbana", "Mixta", "Rural")),
+    zona = factor(zona, levels = c("centro", "norte", "sur"))
+  ) %>% 
+  select(comuna, deprivation_index, urbanisation_classification, zona) %>% 
+  drop_na() 
+# ─────────────────────────────────────────────────────────────────────
+
+
+
+# Asignar coverage_data a modelos
+for (model_name in names(all_named_models)) {
+  all_named_models[[model_name]]$call$data <- coverage_data 
+}
+
+# ─────────────────────────────────────────────────────────────────────
+# 📋 3. Preparar merged_df de cada modelo
+all_merged_df <- list()
+
+for (model_name in names(all_named_models)) {
+  model <- all_named_models[[model_name]]
+  
+  if (!is.null(model$call$data) && !is.null(model$pred) && !is.null(model$pprob)) {
+    model_data <- model$call$data %>%
+      group_by(id) %>%
+      mutate(row_id = row_number()) %>%
+      ungroup()
+    
+    pred_df <- model$pred %>%
+      group_by(id) %>%
+      mutate(row_id = row_number()) %>%
+      ungroup()
+    
+    merged_df <- left_join(model_data, pred_df, by = c("id", "row_id")) %>%
+      left_join(model$pprob, by = "id") %>%
+      filter(!is.na(class))
+    
+    outcome_var <- ifelse(grepl("drsc", model_name), "drsc", "dgcc")
+    
+    class_order <- merged_df %>%
+      group_by(class) %>%
+      dplyr::summarise(mean_value = mean(.data[[outcome_var]], na.rm = TRUE), .groups = "drop") %>%
+      arrange(mean_value) %>%
+      mutate(class_order = row_number())
+    
+    merged_df <- merged_df %>%
+      left_join(class_order, by = "class") %>%
+      mutate(class = class_order) %>%
+      select(-class_order)
+    
+    all_merged_df[[model_name]] <- merged_df
+  }
+}
+
+# ─────────────────────────────────────────────────────────────────────
+# 🧮 4. Regresiones multinomiales
+id_to_comuna <- demographics %>%
+  mutate(id = row_number()) %>%
+  select(id, comuna)
+
+regression_results <- list()
+
+for (model_name in names(all_merged_df)) {
+  
+  df <- all_merged_df[[model_name]] %>%
+    distinct(id, class) %>%
+    left_join(id_to_comuna, by = "id") %>%
+    left_join(demographics, by = "comuna")
+  
+  df$class <- as.factor(df$class)
+  
+  df$class <- relevel(df$class, ref = as.character(max(as.numeric(as.character(df$class)))))
+  
+  if (n_distinct(df$class) < 2) {
+    #cat("⚠️ Model skipped (only one class):", model_name, "\n")
+    next
+  }
+  
+model_multinom <- suppressWarnings(
+  suppressMessages(
+    {
+      tmp <- capture.output(
+        model <- nnet::multinom(class ~ deprivation_index + urbanisation_classification + zona, data = df)
+      )
+      model
+    }
+  )
+)
+
+  tidy_model <- broom::tidy(model_multinom, exponentiate = TRUE, conf.int = TRUE)
+  
+  tidy_model$model_name <- model_name
+  
+  regression_results[[model_name]] <- tidy_model
+}
+
+# 5. Limpiar nombres (ya lo tienes)
+final_regression_table <- bind_rows(regression_results)
+
+# 🔵 FALTA: Crear columna RRR_CI antes de pivot_wider
+final_regression_table <- final_regression_table %>%
+  mutate(
+    RRR_CI = paste0(
+      round(estimate, 2), 
+      " [", round(conf.low, 2), ", ", round(conf.high, 2), "]"
+    )
+  )
+
+# 🔵 Ahora sigue normal:
+
+
+
+# ─────────────────────────────────────────────────────────────────────
+# ✨ 5. Limpieza de nombres
+clean_term_labels <- function(df) {
+  df %>%
+    mutate(term = case_when(
+      term == "deprivation_index" ~ "Deprivation Index (continuous)",
+      term == "urbanisation_classificationMixta" ~ "Mixta (Ref: Urban)",
+      term == "urbanisation_classificationRural" ~ "Rural (Ref: Urban)",
+      term == "zonanorte" ~ "Norte (Ref: Centre)",
+      term == "zonasur" ~ "Sur (Ref: Centre)",
+      term == "(Intercept)" ~ "(Intercept)",
+      TRUE ~ term
+    ))
+}
+
+final_regression_table <- clean_term_labels(final_regression_table)
+# ─────────────────────────────────────────────────────────────────────
+# 🛠️ 6. Funciones para generar tablas
+
+trajectory_labels <- list(
+  "4class_cubic_nre_dgcc_model" = c(
+    "Consistently lower", "Stable medium", "Stable upper medium", "Highest"
+  ),
+  "4class_cubic_nre_drsc_model" = c(
+    "Consistently low", "Stable medium", "Increasing", "Highest decreasing"
+  )
+)
+
+
+
+
+create_clean_table <- function(df, model_name) {
+  # Check if the model has more than one class
+  if (length(unique(df$y.level)) <= 1) {
+    warning(paste("Model skipped (only one class):", model_name))
+    return(NULL)  # Skip this model
+  }
+  
+  labels <- trajectory_labels[[model_name]]
+  
+  df_model <- df %>%
+    filter(model_name == !!model_name) %>%
+    mutate(
+      trajectory = factor(y.level, levels = seq_along(labels), labels = labels)
+    ) %>%
+    select(term, trajectory, RRR_CI) %>%
+    pivot_wider(names_from = trajectory, values_from = RRR_CI)
+  
+  # Mark the last class (reference) as "Ref"
+  reference_label <- tail(labels, 1)
+  if (!(reference_label %in% names(df_model))) {
+    df_model[[reference_label]] <- NA
+  }
+  df_model <- df_model %>%
+    mutate(across(all_of(reference_label), ~ ifelse(is.na(.x), "Ref", .x)))
+
+  df_model <- clean_term_labels(df_model)
+  
+  return(df_model)
+}
+
+
+
+add_reference_rows <- function(table) {
+  
+  class_cols <- names(table)[names(table) != "term"]
+  
+  ref_rows <- tibble(
+    term = c("Urban (Ref)", "Centre (Ref)")
+  )
+  
+  for (col in class_cols) {
+    ref_rows[[col]] <- "Ref"
+  }
+  
+  final_table <- bind_rows(table, ref_rows) %>%
+    arrange(factor(term, levels = c(
+      "(Intercept)",
+      "Deprivation Index (continuous)",
+      "Mixed (Ref: Urban)", "Rural (Ref: Urban)", "Urban (Ref)", 
+      "North (Ref: Centre)", "South (Ref: Centre)", "Centre (Ref)"
+    )))
+  
+  return(final_table)
+}
+
+# ─────────────────────────────────────────────────────────────────────
+# 📊 7. Crear tablas finales
+final_table_4class_dgcc <- create_clean_table(final_regression_table, "4class_cubic_nre_dgcc_model") %>% add_reference_rows()
+final_table_4class_drsc <- create_clean_table(final_regression_table, "4class_cubic_nre_drsc_model") %>% add_reference_rows()
+
+final_table_4class_dgcc %>% gt() %>%
+  tab_options(
+    table.font.size = 10,
+    data_row.padding = px(0),
+    table.border.top.color = "black",
+    heading.border.bottom.color = "black",
+    row_group.border.top.color = "black",
+    row_group.border.bottom.color = "white",
+    table.border.bottom.color = "white",
+    column_labels.border.top.color = "black",
+    column_labels.border.bottom.color = "black",
+    table_body.border.bottom.color = "black",
+    table_body.hlines.color = "white"
+  )  %>% 
+  tab_header(
+    title = md("**Table S5: Odds ratios and 95% confidence intervals for DGCC 2011-2023 from multinomial logistic regression assessing the association between covariates and membership in the highest latent class compared to other classes.**")
+  )
+
+
+    
+  #final_table_4class_drsc %>% gt() %>%
+  #tab_options(
+   # table.font.size = 10,
+   # data_row.padding = px(0),
+   # table.border.top.color = "black",
+   # heading.border.bottom.color = "black",
+   # row_group.border.top.color = "black",
+   # row_group.border.bottom.color = "white",
+   # table.border.bottom.color = "white",
+   # column_labels.border.top.color = "black",
+   # column_labels.border.bottom.color = "black",
+    #table_body.border.bottom.color = "black",
+   # table_body.hlines.color = "white"
+  #)  %>% 
+  #tab_header(
+  #    title = md("**Table S6: Odds ratios and 95% confidence intervals for DRSC 2011-2023 from multinomial logistic regression assessing the association between covariates and membership in the highest latent class compared to other classes.**")
+#  )
+    
+
+# 📌 Nueva regresión DRSC con "Increasing to highest" como referencia
+model_name <- "4class_cubic_nre_drsc_model"
+labels <- trajectory_labels[[model_name]]
+ref_label <- "Increasing"
+ref_index <- which(labels == ref_label)
+
+# Obtener merged_df y df con etiquetas
+df_drsc_alt <- all_merged_df[[model_name]] %>%
+  distinct(id, class) %>%
+  left_join(id_to_comuna, by = "id") %>%
+  left_join(demographics, by = "comuna") %>%
+  mutate(class = factor(class, levels = 1:length(labels), labels = labels)) %>%
+  mutate(class = relevel(class, ref = ref_label))
+
+invisible(capture.output({
+  model_drsc_alt <- nnet::multinom(class ~ deprivation_index + urbanisation_classification + zona, data = df_drsc_alt)
+}))
+
+
+
+# Extraer resultados
+tidy_drsc_alt <- broom::tidy(model_drsc_alt, exponentiate = TRUE, conf.int = TRUE) %>%
+  mutate(
+    RRR_CI = paste0(round(estimate, 2), " [", round(conf.low, 2), ", ", round(conf.high, 2), "]"),
+    model_name = model_name,
+    y.level = factor(y.level, levels = labels[-ref_index])  # reordenar columnas correctamente
+  )
+
+# Crear tabla limpia
+final_table_drsc_increasing_ref <- tidy_drsc_alt %>%
+  select(term, y.level, RRR_CI) %>%
+  pivot_wider(names_from = y.level, values_from = RRR_CI)
+
+# Añadir columna "Increasing to highest" como referencia
+final_table_drsc_increasing_ref[[ref_label]] <- "Ref"
+
+# Reordenar columnas según vector original
+final_table_drsc_increasing_ref <- final_table_drsc_increasing_ref %>%
+  select(term, all_of(labels)) %>%
+  clean_term_labels() %>%
+  add_reference_rows()
+
+# Mostrar tabla
+final_table_drsc_increasing_ref %>% gt() %>%
+  tab_options(
+    table.font.size = 10,
+    data_row.padding = px(0),
+    table.border.top.color = "black",
+    heading.border.bottom.color = "black",
+    row_group.border.top.color = "black",
+    row_group.border.bottom.color = "white",
+    table.border.bottom.color = "white",
+    column_labels.border.top.color = "black",
+    column_labels.border.bottom.color = "black",
+    table_body.border.bottom.color = "black",
+    table_body.hlines.color = "white"
+  ) %>%
+  tab_header(
+    title = md("**Table S6: Odds ratios and 95% confidence intervals for DRSC 2011–2023 from multinomial logistic regression using 'Increasing to highest' as reference.**")
+  )
+
+
+```
+
+```{r}
+
+extract_estimates_table <- function(model) {
+  # Obtener el summary con estimates completos
+  model_summary <- summary(model)
+  
+  if (is.null(model_summary$best)) {
+    warning("El modelo no contiene estimates en $best")
+    return(NULL)
+  }
+  
+  df <- as.data.frame(model_summary$best)
+  
+  # Asignar nombres correctos
+  colnames(df) <- c("Estimate", "Std.Error", "Wald", "p_value")
+  
+  df$Signif <- cut(df$p_value,
+                   breaks = c(-Inf, 0.01, 0.05, 0.1, Inf),
+                   labels = c("***", "**", "*", ""),
+                   right = FALSE)
+  
+  df$Estimate_fmt <- paste0(round(df$Estimate, 4), df$Signif)
+  df$Param_Class <- rownames(df)
+  
+  # Separar en columnas
+  df_sep <- df %>%
+    mutate(
+      Param = sub(" class.*", "", Param_Class),
+      Class = sub(".*class", "Class ", Param_Class)
+    ) %>%
+    select(Param, Class, Estimate_fmt)
+  
+  # Pivotear a formato ancho
+  tabla_final <- pivot_wider(df_sep, names_from = Class, values_from = Estimate_fmt)
+  return(tabla_final)
+}
+
+
+```
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| paged-print: false
+
+
+
+grolts_completed <- tibble::tibble(
+  Question = c(
+    "1. Is the Metric of Time Used in the Statistical Model Reported?",
+    "2. Is Information Presented About the Mean and Variance of Time Within a Wave?",
+    "3a. Is the missing data mechanism reported?",
+    "3b. Is a description provided of what variables are related to attrition/missing data?",
+    "3c. Is a description provided of how missing data in the analyses were dealt with",
+    "4. Is information about the distribution of the observed variables included?",
+    "5. Is the software mentioned",
+    "6a. Are Alternative Specifications of Within-Class Heterogeneity Considered?",
+    "6b. Are alternative specifications of Between-Class Differences in variance-covariance matrix structure considered and documented.",
+    "7. Are Alternative Shape and Functional Forms of the Trajectories Described?",
+    "8. If covariates are used, can analysis still be replicated",
+    "9. Is information reported about the number of random start values and final iterations included?",
+    "10. Are the model comparison tools used described?",
+    "11. Are the Total Number of Fitted Models Reported? Including the One-Class Solution?",
+    "12. Are the number of cases per class reported?",
+    "13. If classification of cases in a trajectory is the goal, is entropy reported?",
+    "14a. Is a plot included with the estimated trajectories for the Final Solution",
+    "14b. Are Plots included with the estimated mean trajectories for each model?",
+    "14c. Is a Plot Included of the Combination of Estimated Means of the Final Model and Observed Individual Trajectories Split out for Each Latent Class",
+    "15. Are the characteristics of the Final Class Solution Numerically Described?",
+    "16. Are the syntax files Available?"
+  ),
+  `Yes/No` = c(
+    "Yes", "Yes", "Yes", "Yes", "Yes",
+    "Yes", "Yes", "Yes", "Yes", "Yes",
+    "Yes", "Yes", "Yes", "Yes", "Yes",
+    "Yes", "Yes", "Yes", "Yes", "Yes",
+    "Yes"
+  ),
+  `Section Reported` = c(
+    "Methods – Study design and statistical analysis",
+    "Methods – Study design",
+    "Methods – Missing data handling",
+    "Methods – Missing data handling",
+    "Methods – Missing data handling",
+    "Methods and Results – Covariates description",
+    "Methods – Statistical analysis",
+    "Methods – Statistical analysis",
+    "Methods – Statistical analysis",
+    "Methods – Statistical analysis",
+    "Methods – Covariate definitions and GitHub link",
+    "Methods – Statistical analysis",
+    "Methods – Statistical analysis",
+    "Methods – Statistical analysis",
+    "Results – Model adequacy",
+    "Results – Model adequacy",
+    "Results – Graphical presentation",
+    "Results – Graphical presentation",
+    "Results – Graphical presentation",
+    "Results – Model adequacy",
+    "Methods – Software and GitHub statement"
+  ),
+  Justification = c(
+    "Annual time points from 2011 to 2023 are clearly described as the temporal metric used in the latent class mixed models.",
+    "Time is consistent across municipalities as it is yearly data; no variation within waves, but the design clarifies this structure.",
+    "Data exclusions are based on administrative rules and design; missing data mechanisms are explicitly described.",
+    "Explains exclusion rules and that no variables are directly related to missingness; missingness is structural.",
+    "Complete case analysis is performed, with no imputation needed due to curated dataset and exclusions.",
+    "Municipal-level covariates are described, summary statistics in each class trajectory by outcome and period is described in tables 1-4 in results section.",
+    "R version 4.4.2 and lcmm package version 2.1.0 are reported.",
+    "Ten model structures tested with and without random effects and heteroscedasticity.",
+    "Model structure and residual envelope diagnostics were used to test class-specific variance assumptions.",
+    "Linear, quadratic, and cubic specifications tested and compared using residual patterns and BIC.",
+    "All covariates are defined and public; syntax files available via GitHub ensure replicability.",
+    "20 random starts and 1000 max iterations are specified.",
+    "BIC, entropy, APPA, OCC, and mismatch metrics are used and documented.",
+    "The total number of fitted models is reported and includes the one-class solution. Specifically, we tested 10 model structures (Supplementary Table S1), each evaluated across 1 to 7 latent classes, resulting in 70 fitted models per outcome-period combination. The one-class solution (K = 1) served as a reference point for assessing model structure adequacy and was included in residual diagnostics and BIC evaluations. Finally we fitted 140 models two of them do not have converged (See model adequacy table with the 137 models in supplementary material)",
+    "Minimum class size >2% is stated; class sizes illustrated in figures.",
+    "Relative entropy is reported for each final model (0.67–0.85).",
+    "Figures 1 and 2 display estimated trajectories for final models.",
+    "Plots with 95% predictive intervals are included.",
+    "Spaghetti plots included as Supplementary Figure S7.",
+    "All adequacy metrics (APPA, OCC, entropy, mismatch) are presented.",
+    "All syntax files and documentation are available on GitHub (link provided)."
+  )
+)
+
+# View the table
+grolts_completed %>%
+  gt() %>%
+  tab_options(
+    table.font.size = 10,
+    data_row.padding = px(0),
+    table.border.top.color = "black",
+    heading.border.bottom.color = "black",
+    row_group.border.top.color = "black",
+    row_group.border.bottom.color = "white",
+    table.border.bottom.color = "white",
+    column_labels.border.top.color = "black",
+    column_labels.border.bottom.color = "black",
+    table_body.border.bottom.color = "black",
+    table_body.hlines.color = "white"
+  )  %>% 
+  tab_header(
+    title = md("**Supplementary Table S9. Reporting of latent growth modeling approach using the GRoLTS checklist**")
+  )
+
+
+
+
+```
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| paged-print: false
+#| fig-align: left
+
+tibble::tibble(
+  Step = 1:8,
+  `Step description` = c(
+    "Scope model by provisionally selecting a plausible number of classes based on available literature and the structure based on plausible clinical patterns.",
+    "Refine the model from step 1 to confirm the optimal number of classes, typically testing K=1–7 classes.",
+    "Refine optimal model structure from fixed through to unrestricted random effects of the model using the favoured K derived in step 2.",
+    "Run model adequacy assessments as described in online supplementary table S3 including posterior probability of assignments (APPA), odds of correct classification (OCC) and relative entropy.",
+    "Investigate graphical presentation",
+    "Run additional tools to assess discrimination including Degrees of separation (DoS) and Elsensohn’s envelope of residuals",
+    "Assess for clinical characterisation and plausibility.",
+    "Conduct sensitivity analyses, for example, testing models without complete data at all time points."
+  ),
+  `Criteria for selection` = c(
+    "Examine linearity of the shape of standardised residual plots for each of the classes in a model with no random effects.",
+    "Lowest Bayesian information criteria value.",
+    "",
+    "APPA: average of maximum probabilities should be greater than 70% for all classes.\nOCC values greater than 5.0.\nRelative entropy values greater than 0.5.",
+    "Plot mean trajectories across time for each class in a single graph.\nPlot mean trajectories with 95% predictive intervals for each class (one class per graph).\nPlot individual class ‘spaghetti plots’ across time for a random sample.",
+    "DoS greater than zero.\nEnvelope of residuals is assessed in plots by observing clear separations between classes.",
+    "Tabulation of characteristics by latent classes. Are the trajectory patterns clinically meaningful? Perhaps, consider classes with a minimum percentage of the population.\nAre the trajectory patterns clinically plausible?\nConcordance of class characteristics with those for other well-established variables.",
+    "General assessment of patterns of trajectories compared with main model."
+  )
+) %>%
+  gt::gt() %>%
+  #tab_spanner(label = 'Model fit and diagnostic criteria', columns = 2:16) %>%
+  tab_options(
+    table.font.size = 10,
+    data_row.padding = px(1),
+    table.border.top.color = "black",
+    heading.border.bottom.color = "black",
+    row_group.border.top.color = "black",
+    row_group.border.bottom.color = "white",
+    table.border.bottom.color = "white",
+    column_labels.border.top.color = "black",
+    column_labels.border.bottom.color = "black",
+    table_body.border.bottom.color = "black",
+    table_body.hlines.color = "white")  %>% 
+  tab_header(
+    title = md("**Supplementary Table S10. Framework of eight steps to construct a latent class trajectory model**")
+  )
+
+
+
+```
