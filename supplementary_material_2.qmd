@@ -1137,11 +1137,11 @@ patchwork::wrap_plots(purrr::compact(individual_trajectories_plots), ncol = 1) +
 #| echo: false
 #| message: false
 #| warning: false
-#| fig-height: 4
-#| fig-width: 5
+#| fig-height: 5
+#| fig-width: 10
 #| paged-print: false
 #| fig-align: left
-#| fig-cap: "Figure S5. Diabetic glycaemic control coverage trajectories and residual Elsensohn envelopes plots" 
+#| fig-cap: "Figure S5. Observed DGCC and DRSC trajectories and Elsensohn envelopes residuals plots" 
 
 # 📂 Load data
 coverage_data <- read.csv("coverage_data.csv")
@@ -1287,19 +1287,34 @@ for (i in seq_along(selected_models)) {
 
 # 🖼 Titles
 dgcc_title <- patchwork::wrap_elements(grid::textGrob(
-  "Diabetic glycaemic control coverage residual Elsensohn envelopes plots", 
+  "Observed DGCC residuals Elsensohn envelopes plots", 
   x = 0, hjust = 0, gp = grid::gpar(fontface = "bold", fontsize = 8)
 ))
 
 drsc_title <- patchwork::wrap_elements(grid::textGrob(
-  "Diabetic retinopathy screening coverage residual Elsensohn envelopes plots", 
+  "Observed DRSC residuals Elsensohn envelopes plots", 
   x = 0, hjust = 0, gp = grid::gpar(fontface = "bold", fontsize = 8)
 ))
 
 
-residual_plot_list[[1]] 
-residual_plot_list[[2]] 
+dgcc_residual_plot <- dgcc_title / residual_plot_list[[1]]  + plot_layout(heights = c(0.1, 1))
+drsc_residual_plot <- drsc_title / residual_plot_list[[2]]  + plot_layout(heights = c(0.1, 1))
+  
 
+# Final combination
+elsensohn_plots <- dgcc_residual_plot | drsc_residual_plot
+
+# Optional overall annotation
+elsensohn_plots <- elsensohn_plots +
+  plot_annotation(
+    theme = theme(
+      plot.title = element_text(size = 14, face = "bold"),
+      plot.subtitle = element_text(size = 10)
+    )
+  )
+
+# Display
+elsensohn_plots
 
 ```
 
@@ -1465,36 +1480,63 @@ gt_tables[[2]]
 #| message: false
 #| warning: false
 #| paged-print: false
+#| fig-height: 4
+#| fig-width: 12
 
-sens1 <- readRDS("sens_dgcc_seed123.rds")
-sens2 <- readRDS("sens_dgcc_seed456.rds")
-sens3 <- readRDS("sens_dgcc_seed789.rds")
 
-sens4 <- readRDS("sens_drsc_seed123.rds")
-sens5 <- readRDS("sens_drsc_seed456.rds")
-sens6 <- readRDS("sens_drsc_seed789.rds")
 
-# Panel original para cada dimensión
-plot_dgcc_original <- predicted_plot_list[["4class_cubic_nre_dgcc_model"]] +
-  labs(title = "Original – Glycaemic control") +
-  theme(plot.title = element_text(face = "bold", size = 10))
+# Read results
+sens_dgcc_original <- readRDS("sens_dgcc_original_seed123.rds")
+sens_dgcc_90 <- readRDS("sens_dgcc_prop90_seed123.rds")
+sens_dgcc_80 <- readRDS("sens_dgcc_prop80_seed123.rds")
+sens_dgcc_70 <- readRDS("sens_dgcc_prop70_seed123.rds")
 
-plot_drsc_original <- predicted_plot_list[["4class_cubic_nre_drsc_model"]] +
-  labs(title = "Original – DR screening") +
-  theme(plot.title = element_text(face = "bold", size = 10))
+sens_drsc_original <- readRDS("sens_drsc_original_seed123.rds")
+sens_drsc_90 <- readRDS("sens_drsc_prop90_seed123.rds")
+sens_drsc_80 <- readRDS("sens_drsc_prop80_seed123.rds")
+sens_drsc_70 <- readRDS("sens_drsc_prop70_seed123.rds")
 
-# Panel 1: DGCC
-panel_dgcc <- (plot_dgcc_original | sens1$plot) +
-              patchwork::plot_annotation(title = "DGCC – Trajectory stability under 80% random subsamples")
+# Helper to set a concise title on either a list-with-$plot or a ggplot
+simple_plot <- function(x, title) {
+  p <- if (inherits(x, "gg")) x else x$plot
+  p + labs(title = title) +
+    theme(plot.title = element_text(face = "bold", size = 10))
+}
 
-# Panel 2: DRSC
-panel_drsc <- (plot_drsc_original | sens4$plot) +
-              patchwork::plot_annotation(title = "DRSC – Trajectory stability under 80% random subsamples")
+# DGCC panel: Original | 90% | 80% | 70%
+panel_dgcc <- (
+  simple_plot(sens_dgcc_original, "Original")    |
+  simple_plot(sens_dgcc_90,       "90% subsample") |
+  simple_plot(sens_dgcc_80,       "80% subsample") |
+  simple_plot(sens_dgcc_70,       "70% subsample")
+) +
+  plot_layout(guides = "collect") +
+  plot_annotation(title = "DGCC — Original, 90%, 80%, 70% subsamples",
+                  theme = theme(plot.title = element_text(size = 12, face = "bold"),
+                                legend.position = "bottom",
+                                legend.direction = "horizontal",
+                                legend.title = element_text(size = 9, face = "bold"),
+                                legend.text  = element_text(size = 8),
+                                legend.box.margin = margin(t = 6)))
+
+# DRSC panel: Original | 90% | 80% | 70%
+panel_drsc <- (
+  simple_plot(sens_drsc_original, "Original")    |
+  simple_plot(sens_drsc_90,       "90% subsample") |
+  simple_plot(sens_drsc_80,       "80% subsample") |
+  simple_plot(sens_drsc_70,       "70% subsample")
+) +
+  plot_layout(guides = "collect") +
+  plot_annotation(title = "DRSC — Original, 90%, 80%, 70% subsamples",
+                  theme = theme(plot.title = element_text(size = 12, face = "bold"),
+                                legend.position = "bottom",
+                                legend.direction = "horizontal",
+                                legend.title = element_blank(),
+                                legend.text  = element_text(size = 8),
+                                legend.box.margin = margin(t = 6)))
 
 panel_dgcc
 panel_drsc
-
-
 
 
 ```
@@ -1712,8 +1754,26 @@ add_reference_rows <- function(table) {
 
 # ─────────────────────────────────────────────────────────────────────
 # 📊 7. Crear tablas finales
-final_table_4class_dgcc <- create_clean_table(final_regression_table, "4class_cubic_nre_dgcc_model") %>% add_reference_rows()
-final_table_4class_drsc <- create_clean_table(final_regression_table, "4class_cubic_nre_drsc_model") %>% add_reference_rows()
+final_table_4class_dgcc <- create_clean_table(final_regression_table, "4class_cubic_nre_dgcc_model") %>% add_reference_rows() |> 
+  mutate(term = fct_relevel(term, c("Intercept", 
+                                     "Deprivation Index (continuous)",
+                                     "Urban (Ref)",
+                                     "Rural (Ref: Urban)",
+                                     "Mixta (Ref: Urban)",
+                                     "Centre (Ref)",
+                                     "Norte (Ref: Centre)",
+                                     "Sur (Ref: Centre)")))
+  
+final_table_4class_drsc <- create_clean_table(final_regression_table, "4class_cubic_nre_drsc_model") %>% add_reference_rows()|> 
+  mutate(term = fct_relevel(term, c("Intercept", 
+                                     "Deprivation Index (continuous)",
+                                     "Urban (Ref)",
+                                     "Rural (Ref: Urban)",
+                                     "Mixta (Ref: Urban)",
+                                     "Centre (Ref)",
+                                     "Norte (Ref: Centre)",
+                                     "Sur (Ref: Centre)"))) |> 
+  arrange(term)
 
 final_table_4class_dgcc %>% gt() %>%
   tab_options(
@@ -1734,24 +1794,7 @@ final_table_4class_dgcc %>% gt() %>%
   )
 
 
-    
-  #final_table_4class_drsc %>% gt() %>%
-  #tab_options(
-   # table.font.size = 10,
-   # data_row.padding = px(0),
-   # table.border.top.color = "black",
-   # heading.border.bottom.color = "black",
-   # row_group.border.top.color = "black",
-   # row_group.border.bottom.color = "white",
-   # table.border.bottom.color = "white",
-   # column_labels.border.top.color = "black",
-   # column_labels.border.bottom.color = "black",
-    #table_body.border.bottom.color = "black",
-   # table_body.hlines.color = "white"
-  #)  %>% 
-  #tab_header(
-  #    title = md("**Table S6: Odds ratios and 95% confidence intervals for DRSC 2011-2023 from multinomial logistic regression assessing the association between covariates and membership in the highest latent class compared to other classes.**")
-#  )
+ 
     
 
 # 📌 Nueva regresión DRSC con "Increasing to highest" como referencia
@@ -1816,45 +1859,492 @@ final_table_drsc_increasing_ref %>% gt() %>%
   )
 
 
+    
 ```
 
 ```{r}
 
-extract_estimates_table <- function(model) {
-  # Obtener el summary con estimates completos
-  model_summary <- summary(model)
-  
-  if (is.null(model_summary$best)) {
-    warning("El modelo no contiene estimates en $best")
-    return(NULL)
-  }
-  
-  df <- as.data.frame(model_summary$best)
-  
-  # Asignar nombres correctos
-  colnames(df) <- c("Estimate", "Std.Error", "Wald", "p_value")
-  
-  df$Signif <- cut(df$p_value,
-                   breaks = c(-Inf, 0.01, 0.05, 0.1, Inf),
-                   labels = c("***", "**", "*", ""),
-                   right = FALSE)
-  
-  df$Estimate_fmt <- paste0(round(df$Estimate, 4), df$Signif)
-  df$Param_Class <- rownames(df)
-  
-  # Separar en columnas
-  df_sep <- df %>%
-    mutate(
-      Param = sub(" class.*", "", Param_Class),
-      Class = sub(".*class", "Class ", Param_Class)
-    ) %>%
-    select(Param, Class, Estimate_fmt)
-  
-  # Pivotear a formato ancho
-  tabla_final <- pivot_wider(df_sep, names_from = Class, values_from = Estimate_fmt)
-  return(tabla_final)
+# --- packages
+suppressPackageStartupMessages({
+  library(dplyr); library(tidyr); library(readr)
+  library(purrr); library(broom); library(nnet)
+  library(gt);    library(stringr)
+})
+
+# 1) Load data -----------------------------------------------------------------
+coverage_data    <- read_csv("coverage_data.csv", show_col_types = FALSE)
+all_named_models <- readRDS("all_named_models.rds")
+
+demographics <- read_csv("demographics.csv", show_col_types = FALSE) %>%
+  mutate(
+    deprivation_index = index_standardized,
+    urbanisation_classification = factor(urbanisation_classification,
+                                         levels = c("Urbana","Mixta","Rural")),
+    zona = factor(zona, levels = c("centro","norte","sur"))
+  ) %>%
+  select(comuna, deprivation_index, urbanisation_classification, zona) %>%
+  tidyr::drop_na()
+
+# 2) Limit to the two models you care about ------------------------------------
+target_models <- c("4class_cubic_nre_dgcc_model", "4class_cubic_nre_drsc_model")
+missing <- setdiff(target_models, names(all_named_models))
+if (length(missing)) stop("Missing models in all_named_models: ", paste(missing, collapse = ", "))
+
+# Make sure each stored model points to the actual coverage_data (for safety)
+for (nm in target_models) all_named_models[[nm]]$call$data <- coverage_data
+
+# 3) Build merged data per model, with stable class ordering -------------------
+build_merged <- function(model_name) {
+  model <- all_named_models[[model_name]]
+  stopifnot(!is.null(model$call$data), !is.null(model$pred), !is.null(model$pprob))
+
+  # we only need id & outcome to compute class ordering
+  outcome_var <- if (grepl("drsc", model_name, ignore.case = TRUE)) "drsc" else "dgcc"
+
+  model_data <- model$call$data %>%
+    arrange(id, year) %>%
+    group_by(id) %>% mutate(row_id = row_number()) %>% ungroup()
+
+  pred_df <- model$pred %>%
+    group_by(id) %>% mutate(row_id = row_number()) %>% ungroup()
+
+  merged_df <- left_join(model_data, pred_df, by = c("id","row_id")) %>%
+    left_join(model$pprob, by = "id") %>% 
+    filter(!is.na(class))
+
+  # order classes by mean outcome → 1..K small→large (stable across plots/tables)
+  class_order <- merged_df %>%
+    group_by(class) %>%
+    summarise(mean_value = mean(.data[[outcome_var]], na.rm = TRUE), .groups = "drop") %>%
+    arrange(mean_value) %>%
+    mutate(class_order = row_number())
+
+  merged_df %>%
+    left_join(class_order, by = "class") %>%
+    mutate(class = class_order) %>%
+    select(-class_order)
 }
 
+all_merged_df <- lapply(setNames(target_models, target_models), build_merged)
+
+# 4) Correct id → comuna map (CRITICAL fix) ------------------------------------
+id_to_comuna <- coverage_data %>% distinct(id, comuna)
+# sanity checks
+stopifnot(nrow(id_to_comuna) == n_distinct(coverage_data$id))
+if (nrow(anti_join(id_to_comuna, demographics, by = "comuna")) > 0) {
+  warning("Some comunas in coverage_data are missing in demographics; those rows will be dropped.")
+}
+
+# 5) Run multinomial regressions for each model --------------------------------
+regression_results <- list()
+
+for (model_name in names(all_merged_df)) {
+  df <- all_merged_df[[model_name]] %>%
+    distinct(id, class) %>%
+    left_join(id_to_comuna, by = "id") %>%
+    left_join(demographics, by = "comuna") %>%
+    drop_na(deprivation_index, urbanisation_classification, zona)
+
+  if (n_distinct(df$class) < 2) next
+
+  df$class <- factor(df$class)
+  # use highest numeric class as reference
+  df$class <- stats::relevel(df$class, ref = as.character(max(as.numeric(as.character(df$class)))))
+
+  model_fit <- suppressWarnings(suppressMessages(
+    nnet::multinom(class ~ deprivation_index + urbanisation_classification + zona, data = df)
+  ))
+
+  regression_results[[model_name]] <-
+    broom::tidy(model_fit, exponentiate = TRUE, conf.int = TRUE) %>%
+    mutate(
+      model_name = model_name,
+      RRR_CI = paste0(round(estimate, 2), " [", round(conf.low, 2), ", ", round(conf.high, 2), "]")
+    )
+}
+
+final_regression_table <- bind_rows(regression_results)
+
+# 6) Pretty labels & helpers ----------------------------------------------------
+clean_term_labels <- function(df) {
+  df %>%
+    mutate(term = case_when(
+      term == "(Intercept)"                        ~ "(Intercept)",
+      term == "deprivation_index"                  ~ "Deprivation Index (continuous)",
+      term == "urbanisation_classificationMixta"   ~ "Mixta (Ref: Urban)",
+      term == "urbanisation_classificationRural"   ~ "Rural (Ref: Urban)",
+      term == "zonanorte"                          ~ "Norte (Ref: Centre)",
+      term == "zonasur"                            ~ "Sur (Ref: Centre)",
+      TRUE ~ term
+    ))
+}
+
+trajectory_labels <- list(
+  "4class_cubic_nre_dgcc_model" = c("Consistently lower","Stable medium","Stable upper medium","Highest"),
+  "4class_cubic_nre_drsc_model" = c("Consistently low","Stable medium","Increasing","Highest decreasing")
+)
+
+# --- replace your create_clean_table() with this -----------------------
+create_clean_table <- function(df, model_name) {
+  labels <- trajectory_labels[[model_name]]
+  if (is.null(labels)) stop("No labels for ", model_name)
+
+  out <- df %>%
+    dplyr::filter(model_name == !!model_name) %>%
+    dplyr::mutate(
+      trajectory = factor(y.level, levels = seq_along(labels), labels = labels)
+    ) %>%
+    dplyr::select(term, trajectory, RRR_CI) %>%
+    tidyr::pivot_wider(names_from = trajectory, values_from = RRR_CI) %>%
+    clean_term_labels()
+
+  # add the (reference) last class column if it isn't present
+  ref_col <- labels[length(labels)]
+  if (!ref_col %in% names(out)) out[[ref_col]] <- "Ref"
+
+  # order the class columns exactly as in `labels`
+  out %>% dplyr::select(term, dplyr::all_of(labels))
+}
+
+# 7) Build the two final tables -------------------------------------------------
+tab_dgcc <- create_clean_table(final_regression_table, "4class_cubic_nre_dgcc_model") %>%
+  add_reference_rows()
+
+tab_drsc <- create_clean_table(final_regression_table, "4class_cubic_nre_drsc_model") %>%
+  add_reference_rows()
+
+
+# 8) Show with gt ---------------------------------------------------------------
+gt_dgcc <- tab_dgcc %>%
+  gt() %>%
+  tab_options(
+    table.font.size = 10,
+    data_row.padding = px(0),
+    table.border.top.color = "black",
+    heading.border.bottom.color = "black",
+    column_labels.border.top.color = "black",
+    column_labels.border.bottom.color = "black",
+    table_body.border.bottom.color = "black",
+    table_body.hlines.color = "white"
+  ) %>%
+  tab_header(
+    title = md("**Table S5: Odds ratios and 95% confidence intervals for DGCC 2011–2023**"),
+    subtitle = md("Multinomial logistic regression: membership in each class vs **Highest** (reference)")
+  )
+
+gt_drsc <- tab_drsc %>%
+  gt() %>%
+  tab_options(
+    table.font.size = 10,
+    data_row.padding = px(0),
+    table.border.top.color = "black",
+    heading.border.bottom.color = "black",
+    column_labels.border.top.color = "black",
+    column_labels.border.bottom.color = "black",
+    table_body.border.bottom.color = "black",
+    table_body.hlines.color = "white"
+  ) %>%
+  tab_header(
+    title = md("**Table S6: Odds ratios and 95% confidence intervals for DRSC 2011–2023**"),
+    subtitle = md("Multinomial logistic regression: membership in each class vs **Highest decreasing** (reference)")
+  )
+
+gt_dgcc
+gt_drsc
+
+# --- Optional: DRSC using "Increasing" as the reference -----------------------
+# (uncomment to produce an alternative table)
+# {
+#   model_name <- "4class_cubic_nre_drsc_model"
+#   labels <- trajectory_labels[[model_name]]
+#   ref_label <- "Increasing"
+#   ref_index <- match(ref_label, labels)
+#
+#   df_alt <- all_merged_df[[model_name]] %>%
+#     distinct(id, class) %>%
+#     left_join(id_to_comuna, by = "id") %>%
+#     left_join(demographics, by = "comuna") %>%
+#     drop_na(deprivation_index, urbanisation_classification, zona) %>%
+#     mutate(class = factor(class, levels = 1:length(labels), labels = labels),
+#            class = relevel(class, ref = ref_label))
+#
+#   fit_alt <- suppressWarnings(suppressMessages(
+#     nnet::multinom(class ~ deprivation_index + urbanisation_classification + zona, data = df_alt)
+#   ))
+#
+#   tab_drsc_increasing <- broom::tidy(fit_alt, exponentiate = TRUE, conf.int = TRUE) %>%
+#     mutate(
+#       RRR_CI = paste0(round(estimate, 2), " [", round(conf.low, 2), ", ", round(conf.high, 2), "]"),
+#       y.level = factor(y.level, levels = labels[-ref_index])
+#     ) %>%
+#     select(term, y.level, RRR_CI) %>%
+#     pivot_wider(names_from = y.level, values_from = RRR_CI) %>%
+#     mutate(`{ref_label}` := "Ref") %>%
+#     select(term, all_of(labels)) %>%
+#     clean_term_labels() %>%
+#     add_reference_rows() %>%
+#     gt() %>%
+#     tab_header(
+#       title = md("**Table S6 (alt): DRSC with 'Increasing' as reference**")
+#     )
+#
+#   tab_drsc_increasing
+# }
+
+```
+
+```{r}
+
+
+# ==== PACKAGES ================================================================
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(tidyr)
+  library(readr)
+  library(stringr)
+  library(forcats)
+  library(nnet)
+  library(broom)
+  library(gt)
+  library(tibble)
+})
+
+# ==== 1) LOAD DATA ============================================================
+coverage_data    <- read_csv("coverage_data.csv", show_col_types = FALSE)
+all_named_models <- readRDS("all_named_models.rds")
+demographics <- read_csv("demographics.csv", show_col_types = FALSE) %>%
+  mutate(
+    deprivation_index = index_standardized,
+    # set the exact target references
+    urbanisation_classification = factor(urbanisation_classification,
+                                         levels = c("Urbana","Mixta","Rural")),
+    zona = factor(zona, levels = c("centro","norte","sur"))
+  ) %>%
+  select(comuna, deprivation_index, urbanisation_classification, zona) %>%
+  drop_na()
+
+# Make sure every model uses your coverage_data (some saved models keep old env)
+for (mn in names(all_named_models)) {
+  if (!is.null(all_named_models[[mn]]$call))
+    all_named_models[[mn]]$call$data <- coverage_data
+}
+
+# A reliable id -> comuna map taken from the *actual* modelling data
+id_to_comuna <- coverage_data %>%
+  distinct(id, comuna) %>%
+  filter(!is.na(id), !is.na(comuna))
+
+# ==== 2) PREP: build merged_df for the two target models ======================
+target_models <- c("4class_cubic_nre_dgcc_model","4class_cubic_nre_drsc_model")
+
+build_merged <- function(model_name) {
+  model <- all_named_models[[model_name]]
+  if (is.null(model) || is.null(model$call$data) || is.null(model$pred) || is.null(model$pprob)) {
+    warning(paste("Missing components in", model_name))
+    return(NULL)
+  }
+
+  model_data <- model$call$data %>%
+    arrange(id, year) %>%
+    group_by(id) %>% mutate(row_id = row_number()) %>% ungroup()
+
+  pred_df <- model$pred %>%
+    group_by(id) %>% mutate(row_id = row_number()) %>% ungroup()
+
+  merged_df <- left_join(model_data, pred_df, by = c("id","row_id")) %>%
+    left_join(model$pprob, by = "id") %>%
+    filter(!is.na(class))
+
+  # ✅ case-insensitive check
+  outcome_var <- ifelse(grepl("drsc", model_name, ignore.case = TRUE), "drsc", "dgcc")
+  # or: outcome_var <- ifelse(stringr::str_detect(model_name, stringr::regex("drsc", ignore_case = TRUE)), "drsc", "dgcc")
+
+  class_order <- merged_df %>%
+    group_by(class) %>%
+    summarise(mean_val = mean(.data[[outcome_var]], na.rm = TRUE), .groups = "drop") %>%
+    arrange(mean_val) %>%
+    mutate(class_order = row_number())
+
+  merged_df %>%
+    left_join(class_order, by = "class") %>%
+    mutate(class = class_order) %>%
+    select(-class_order)
+}
+
+all_merged_df <- lapply(target_models, build_merged)
+names(all_merged_df) <- target_models
+all_merged_df <- Filter(Negate(is.null), all_merged_df)
+
+if (!all(target_models %in% names(all_merged_df))) {
+  warning("One or both target models could not produce merged data; tables may be partial.")
+}
+
+# ==== 3) MULTINOMIAL RRR FITTER ==============================================
+fit_multinom_rrr <- function(model_name, merged_df) {
+
+  # collapse to one row per id: (id, class)
+  df <- merged_df %>%
+    distinct(id, class) %>%
+    left_join(id_to_comuna, by = "id") %>%
+    left_join(demographics, by = "comuna") %>%
+    # make modelling inputs safe & drop NAs
+    mutate(
+      class = factor(class),  # 1..K after our ordering above
+      # set the highest class as reference level:
+      class = forcats::fct_relevel(class, as.character(max(as.numeric(as.character(class)), na.rm = TRUE)))
+    ) %>%
+    filter(!is.na(deprivation_index),
+           !is.na(urbanisation_classification),
+           !is.na(zona),
+           !is.na(class)) %>%
+    droplevels()
+
+  if (nlevels(df$class) < 2) {
+    warning(paste("Not enough outcome levels for", model_name, "— skipping"))
+    return(NULL)
+  }
+
+  # ensure references for covariates
+  df <- df %>%
+    mutate(
+      urbanisation_classification = fct_relevel(urbanisation_classification, "Urbana","Mixta","Rural"),
+      zona  = fct_relevel(zona, "centro","norte","sur")
+    )
+
+  # Fit
+  fit <- try(nnet::multinom(class ~ deprivation_index + urbanisation_classification + zona,
+                            data = df, trace = FALSE), silent = TRUE)
+  if (inherits(fit, "try-error")) {
+    warning(paste("multinom() failed for", model_name))
+    return(NULL)
+  }
+
+  # Tidy with RRR + CI
+  res <- broom::tidy(fit, exponentiate = TRUE, conf.int = TRUE)
+  if (!is.data.frame(res) || nrow(res) == 0) return(NULL)
+
+  res$model_name <- model_name
+  res <- res %>%
+    mutate(
+      RRR_CI = paste0(round(estimate, 2), " [", round(conf.low, 2), ", ", round(conf.high, 2), "]")
+    )
+
+  res
+}
+
+regression_results <- list()
+for (mn in names(all_merged_df)) {
+  regression_results[[mn]] <- fit_multinom_rrr(mn, all_merged_df[[mn]])
+}
+regression_results <- Filter(Negate(is.null), regression_results)
+
+if (length(regression_results) == 0) {
+  stop("No multinomial models could be fitted for the target models.")
+}
+
+final_regression_table <- bind_rows(regression_results)
+
+# ==== 4) NICE LABELS + WIDE TABLE PER MODEL ==================================
+trajectory_labels <- list(
+  "4class_cubic_nre_dgcc_model" = c("Consistently lower","Stable medium","Stable upper medium","Highest"),
+  "4class_cubic_nre_drsc_model" = c("Consistently low","Stable medium","Increasing","Highest decreasing")
+)
+
+clean_term_labels <- function(df) {
+  df %>%
+    mutate(term = case_when(
+      term == "deprivation_index" ~ "Deprivation Index (continuous)",
+      term == "urbanisation_classificationMixta" ~ "Mixta (Ref: Urban)",
+      term == "urbanisation_classificationRural" ~ "Rural (Ref: Urban)",
+      term == "zonanorte" ~ "Norte (Ref: Centre)",
+      term == "zonasur" ~ "Sur  (Ref: Centre)",
+      term == "(Intercept)" ~ "(Intercept)",
+      TRUE ~ term
+    ))
+}
+
+# build a wide table (columns = classes vs reference, which is the highest)
+make_table_for_model <- function(df_all, model_name) {
+  labs <- trajectory_labels[[model_name]]
+  if (is.null(labs)) stop("No trajectory labels for ", model_name)
+
+  dfm <- df_all %>%
+    filter(model_name == !!model_name) %>%
+    mutate(trajectory = factor(y.level, levels = as.character(seq_along(labs)), labels = labs)) %>%
+    select(term, trajectory, RRR_CI) %>%
+    tidyr::pivot_wider(names_from = trajectory, values_from = RRR_CI)
+
+  # Add explicit "Ref" in the (highest) reference column if missing
+  ref_col <- labs[length(labs)]
+  if (!ref_col %in% names(dfm)) dfm[[ref_col]] <- NA_character_
+  dfm[[ref_col]][is.na(dfm[[ref_col]])] <- "Ref"
+
+  dfm <- clean_term_labels(dfm)
+
+  # add explicit reference rows for Urban/Centre
+  ref_rows <- tibble(term = c("Urban (Ref)", "Centre (Ref)"))
+  for (cc in setdiff(names(dfm), "term")) ref_rows[[cc]] <- "Ref"
+  dfm <- bind_rows(dfm, ref_rows)
+
+  # order rows as requested
+  row_order <- c(
+    "(Intercept)",
+    "Deprivation Index (continuous)",
+    "Rural (Ref: Urban)", "Mixta (Ref: Urban)", "Urban (Ref)",
+    "Norte (Ref: Centre)", "Sur  (Ref: Centre)", "Centre (Ref)"
+  )
+
+  dfm %>%
+    mutate(term = factor(term, levels = row_order)) %>%
+    arrange(term) %>%
+    mutate(term = as.character(term))
+}
+
+table_dgcc <- make_table_for_model(final_regression_table, "4class_cubic_nre_dgcc_model")
+table_drsc <- make_table_for_model(final_regression_table, "4class_cubic_nre_drsc_model")
+
+# ==== 5) SHOW GT TABLES =======================================================
+gt_dgcc <- table_dgcc %>%
+  gt() %>%
+  tab_options(
+    table.font.size = 10,
+    data_row.padding = px(0),
+    table.border.top.color = "black",
+    heading.border.bottom.color = "black",
+    row_group.border.top.color = "black",
+    row_group.border.bottom.color = "white",
+    table.border.bottom.color = "white",
+    column_labels.border.top.color = "black",
+    column_labels.border.bottom.color = "black",
+    table_body.border.bottom.color = "black",
+    table_body.hlines.color = "white"
+  ) %>%
+  tab_header(
+    title = md("**Table S5. Multinomial RRR (95% CI) — DGCC (Ref: Highest class)**")
+  )
+
+gt_drsc <- table_drsc %>%
+  gt() %>%
+  tab_options(
+    table.font.size = 10,
+    data_row.padding = px(0),
+    table.border.top.color = "black",
+    heading.border.bottom.color = "black",
+    row_group.border.top.color = "black",
+    row_group.border.bottom.color = "white",
+    table.border.bottom.color = "white",
+    column_labels.border.top.color = "black",
+    column_labels.border.bottom.color = "black",
+    table_body.border.bottom.color = "black",
+    table_body.hlines.color = "white"
+  ) %>%
+  tab_header(
+    title = md("**Table S6. Multinomial RRR (95% CI) — DRSC (Ref: Highest class)**")
+  )
+
+# Print them
+gt_dgcc
+gt_drsc
 
 ```
 
